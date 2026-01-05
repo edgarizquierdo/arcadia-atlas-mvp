@@ -179,29 +179,41 @@
         const go = div.querySelector('button[data-muni="go"]');
 
         async function searchAndZoom() {
-          const q = (input.value || "").trim();
-          if (!q) return;
+  const q = (input.value || "").trim();
+  if (!q) return;
 
-          // Si buscan municipio, normalmente es España. Afinamos para mejor geocoding:
-          const query = `${q}, Cataluña, España`;
+  // Búsqueda restringida a Cataluña (España)
+  const params = new URLSearchParams({
+    format: "json",
+    limit: "1",
+    countrycodes: "es",
+    state: "Cataluña",
+    q: q
+  });
 
-          // Nominatim (sin librerías extra)
-          const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
-          const res = await fetch(url, { headers: { "Accept": "application/json" } });
-          const data = await res.json();
-          if (!data || !data.length) {
-            alert("No encontrado. Prueba con otro municipio.");
-            return;
-          }
+  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
 
-          const lat = parseFloat(data[0].lat);
-          const lon = parseFloat(data[0].lon);
+  const res = await fetch(url, {
+    headers: {
+      "Accept": "application/json"
+    }
+  });
 
-          // activa capa ⚡ automáticamente (así “te lleva a la zona de riesgo”)
-          if (!enabled) await setEnabled(true);
+  const data = await res.json();
 
-          map.setView([lat, lon], 12);
-        }
+  if (!data || !data.length) {
+    alert("Municipio no encontrado en Cataluña.");
+    return;
+  }
+
+  const lat = parseFloat(data[0].lat);
+  const lon = parseFloat(data[0].lon);
+
+  // Activa automáticamente la capa ⚡
+  if (!enabled) await setEnabled(true);
+
+  map.setView([lat, lon], 12);
+}
 
         go.addEventListener("click", searchAndZoom);
         input.addEventListener("keydown", (e) => {
