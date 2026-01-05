@@ -182,13 +182,14 @@
   const q = (input.value || "").trim();
   if (!q) return;
 
-  // Búsqueda restringida a Cataluña (España)
+  // Query robusta para TODOS los municipios de Cataluña
+  const query = `${q}, Catalunya, España`;
+
   const params = new URLSearchParams({
     format: "json",
     limit: "1",
     countrycodes: "es",
-    state: "Cataluña",
-    q: q
+    q: query
   });
 
   const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
