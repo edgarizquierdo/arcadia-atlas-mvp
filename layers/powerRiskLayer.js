@@ -178,6 +178,97 @@
         const input = div.querySelector('input[data-muni="q"]');
         const go = div.querySelector('button[data-muni="go"]');
 
+        // ================================
+// PREDICTIVO: LISTENER INPUT
+// ================================
+input.addEventListener("input", () => {
+  const value = input.value.trim();
+
+  if (suggestTimer) clearTimeout(suggestTimer);
+
+  if (value.length < 3) {
+    suggestBox.style.display = "none";
+    return;
+  }
+
+  suggestTimer = setTimeout(async () => {
+    const results = await fetchSuggestions(value);
+
+    suggestBox.innerHTML = "";
+
+    if (!results || !results.length) {
+      suggestBox.style.display = "none";
+      return;
+    }
+
+    results.forEach(r => {
+      const item = document.createElement("div");
+      item.textContent = r.display_name.split(",")[0];
+      item.style.padding = "8px 10px";
+      item.style.cursor = "pointer";
+      item.style.fontSize = "13px";
+      item.style.color = "#e2e8f0";
+
+      item.addEventListener("mouseenter", () => {
+        item.style.background = "#1e293b";
+      });
+      item.addEventListener("mouseleave", () => {
+        item.style.background = "transparent";
+      });
+
+      item.addEventListener("click", async () => {
+        input.value = r.display_name.split(",")[0];
+        suggestBox.style.display = "none";
+
+        if (!enabled) await setEnabled(true);
+        map.setView([parseFloat(r.lat), parseFloat(r.lon)], 12);
+      });
+
+      suggestBox.appendChild(item);
+    });
+
+    suggestBox.style.display = "block";
+  }, 300);
+});
+
+// ================================
+// BOTÓN "IR"
+// ================================
+go.addEventListener("click", () => {
+  suggestBox.style.display = "none";
+  searchAndZoom();
+});
+
+// ================================
+// ENTER EN INPUT
+// ================================
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    suggestBox.style.display = "none";
+    searchAndZoom();
+  }
+});
+
+        // Contenedor de sugerencias
+const suggestBox = document.createElement("div");
+suggestBox.style.position = "absolute";
+suggestBox.style.top = "100%";
+suggestBox.style.left = "0";
+suggestBox.style.right = "0";
+suggestBox.style.background = "#020617";
+suggestBox.style.border = "1px solid #21304d";
+suggestBox.style.borderRadius = "10px";
+suggestBox.style.marginTop = "4px";
+suggestBox.style.maxHeight = "220px";
+suggestBox.style.overflowY = "auto";
+suggestBox.style.display = "none";
+suggestBox.style.zIndex = "9999";
+
+div.style.position = "relative";
+div.appendChild(suggestBox);
+
+
         function normalizeName(str) {
   return str
     .toLowerCase()
@@ -192,6 +283,23 @@ async function nominatimSearch(q) {
     format: "json",
     limit: "1",
     countrycodes: "es",
+    q
+  });
+
+  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  return await res.json();
+}
+
+let suggestTimer = null;
+
+async function fetchSuggestions(q) {
+  const params = new URLSearchParams({
+    format: "json",
+    limit: "6",
+    countrycodes: "es",
+    viewbox: "0.15,42.9,3.4,40.4", // Cataluña
+    bounded: "1",
     q
   });
 
