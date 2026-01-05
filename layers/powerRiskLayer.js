@@ -183,7 +183,7 @@
           if (!q) return;
 
           // Si buscan municipio, normalmente es España. Afinamos para mejor geocoding:
-          const query = `${q}, Tarragona, España`;
+          const query = `${q}, Cataluña, España`;
 
           // Nominatim (sin librerías extra)
           const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}`;
