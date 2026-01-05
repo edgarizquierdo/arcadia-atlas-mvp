@@ -204,31 +204,104 @@ async function nominatimSearch(q) {
   const raw = (input.value || "").trim();
   if (!raw) return;
 
-  // 1️⃣ Extraer núcleo del nombre (primeros 2–3 términos)
-  const core = raw.split(" ").slice(0, 3).join(" ");
+  // Cataluña bbox para acotar (minLon, maxLat, maxLon, minLat)
+  const CATALUNYA_VIEWBOX = "0.15,42.9,3.4,40.4";
 
-  const params = new URLSearchParams({
-    format: "json",
-    limit: "1",
-    countrycodes: "es",
-    q: core,
-    viewbox: "0.15,42.9,3.4,40.4", // bounding box Cataluña
-    bounded: "1"
-  });
+  // Genera variantes de consulta (de más específica a más “tolerante”)
+  const tokens = raw.split(/\s+/).filter(Boolean);
 
-  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
-  const res = await fetch(url, { headers: { Accept: "application/json" } });
-  const data = await res.json();
+  const first2 = tokens.slice(0, 2).join(" ");              // "Sant Fost"
+  const first3 = tokens.slice(0, 3).join(" ");              // "Sant Fost de" (a veces demasiado genérico)
+  const first4 = tokens.slice(0, 4).join(" ");              // "Sant Fost de Campcentelles"
 
-  if (!data || !data.length) {
+  // Quitamos “de/del/la/el…” para una variante útil
+  const simplified = raw
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(de|del|la|el|les|los|l')\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Lista de queries a probar
+  const queries = [
+    `${raw}, Catalunya, España`,
+    `${first4}, Catalunya, España`,
+    `${first2}, Catalunya, España`,
+    `${simplified}, Catalunya, España`,
+    // último recurso: solo el núcleo, pero acotado por bbox
+    `${first2}`
+  ].filter((v, i, a) => v && a.indexOf(v) === i);
+
+  async function nominatim(q) {
+    const params = new URLSearchParams({
+      format: "json",
+      limit: "10",                 // <-- importante: más de 1 resultado
+      countrycodes: "es",
+      addressdetails: "1",
+      q
+    });
+
+    // Acotamos físicamente a Cataluña siempre (evita salirse)
+    params.set("viewbox", CATALUNYA_VIEWBOX);
+    params.set("bounded", "1");
+
+    const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+    const res = await fetch(url, { headers: { Accept: "application/json" } });
+    return await res.json();
+  }
+
+  function looksCatalunya(r) {
+    const a = r.address || {};
+    const dn = (r.display_name || "").toLowerCase();
+    return (
+      dn.includes("catalunya") ||
+      dn.includes("catalonia") ||
+      (a.state && String(a.state).toLowerCase().includes("catal"))
+    );
+  }
+
+  function score(r) {
+    // preferimos límites administrativos / municipios
+    const cls = (r.class || "").toLowerCase();
+    const typ = (r.type || "").toLowerCase();
+    let s = 0;
+
+    if (cls === "boundary") s += 50;
+    if (typ.includes("administrative")) s += 40;
+    if (["city", "town", "village", "municipality"].includes(typ)) s += 30;
+
+    if (looksCatalunya(r)) s += 40;
+
+    // preferimos que el nombre contenga el núcleo (ej. "sant fost")
+    const name = (r.display_name || "").toLowerCase();
+    const core = first2.toLowerCase();
+    if (core && name.includes(core)) s += 25;
+
+    return s;
+  }
+
+  let best = null;
+
+  for (const q of queries) {
+    const results = await nominatim(q);
+    if (!results || !results.length) continue;
+
+    // Ordena por score y escoge el mejor
+    results.sort((a, b) => score(b) - score(a));
+    best = results[0];
+
+    // Si el mejor ya es claramente Cataluña + admin, paramos
+    if (looksCatalunya(best) && ((best.class || "").toLowerCase() === "boundary")) break;
+  }
+
+  if (!best) {
     alert("Municipio no encontrado en Cataluña.");
     return;
   }
 
-  const lat = parseFloat(data[0].lat);
-  const lon = parseFloat(data[0].lon);
+  const lat = parseFloat(best.lat);
+  const lon = parseFloat(best.lon);
 
-  // Activa automáticamente la capa ⚡
   if (!enabled) await setEnabled(true);
 
   map.setView([lat, lon], 12);
