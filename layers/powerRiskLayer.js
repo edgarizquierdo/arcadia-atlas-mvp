@@ -178,29 +178,40 @@
         const input = div.querySelector('input[data-muni="q"]');
         const go = div.querySelector('button[data-muni="go"]');
 
-        async function searchAndZoom() {
-  const q = (input.value || "").trim();
-  if (!q) return;
+        function normalizeName(str) {
+  return str
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // quita tildes
+    .replace(/\b(de|del|la|el|les|los|l')\b/g, "")   // quita artículos
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  // Query robusta para TODOS los municipios de Cataluña
-  const query = `${q}, Catalunya, España`;
-
+async function nominatimSearch(q) {
   const params = new URLSearchParams({
     format: "json",
     limit: "1",
     countrycodes: "es",
-    q: query
+    q
   });
 
   const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  return await res.json();
+}
 
-  const res = await fetch(url, {
-    headers: {
-      "Accept": "application/json"
-    }
-  });
+        async function searchAndZoom() {
+  const raw = (input.value || "").trim();
+  if (!raw) return;
 
-  const data = await res.json();
+  // 1️⃣ intento normal (nombre tal cual)
+  let data = await nominatimSearch(`${raw}, Catalunya, España`);
+
+  // 2️⃣ intento tolerante (sin artículos / sin tildes)
+  if (!data || !data.length) {
+    const alt = normalizeName(raw);
+    data = await nominatimSearch(`${alt}, Catalunya, España`);
+  }
 
   if (!data || !data.length) {
     alert("Municipio no encontrado en Cataluña.");
