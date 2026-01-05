@@ -204,14 +204,21 @@ async function nominatimSearch(q) {
   const raw = (input.value || "").trim();
   if (!raw) return;
 
-  // 1️⃣ intento normal (nombre tal cual)
-  let data = await nominatimSearch(`${raw}, Catalunya, España`);
+  // 1️⃣ Extraer núcleo del nombre (primeros 2–3 términos)
+  const core = raw.split(" ").slice(0, 3).join(" ");
 
-  // 2️⃣ intento tolerante (sin artículos / sin tildes)
-  if (!data || !data.length) {
-    const alt = normalizeName(raw);
-    data = await nominatimSearch(`${alt}, Catalunya, España`);
-  }
+  const params = new URLSearchParams({
+    format: "json",
+    limit: "1",
+    countrycodes: "es",
+    q: core,
+    viewbox: "0.15,42.9,3.4,40.4", // bounding box Cataluña
+    bounded: "1"
+  });
+
+  const url = `https://nominatim.openstreetmap.org/search?${params.toString()}`;
+  const res = await fetch(url, { headers: { Accept: "application/json" } });
+  const data = await res.json();
 
   if (!data || !data.length) {
     alert("Municipio no encontrado en Cataluña.");
