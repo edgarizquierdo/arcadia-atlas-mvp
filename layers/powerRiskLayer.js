@@ -178,6 +178,29 @@
         const input = div.querySelector('input[data-muni="q"]');
         const go = div.querySelector('button[data-muni="go"]');
 
+        // Contenedor de sugerencias
+const suggestBox = document.createElement("div");
+suggestBox.style.position = "absolute";
+suggestBox.style.top = "100%";
+suggestBox.style.left = "0";
+suggestBox.style.right = "0";
+suggestBox.style.background = "#020617";
+suggestBox.style.border = "1px solid #21304d";
+suggestBox.style.borderRadius = "10px";
+suggestBox.style.marginTop = "4px";
+suggestBox.style.maxHeight = "220px";
+suggestBox.style.overflowY = "auto";
+suggestBox.style.display = "none";
+suggestBox.style.zIndex = "10000";
+suggestBox.style.pointerEvents = "auto";
+suggestBox.style.color = "#e2e8f0";
+suggestBox.style.fontFamily = "Arial, sans-serif";
+
+div.style.position = "relative";
+div.style.overflow = "visible";
+div.appendChild(suggestBox);
+
+
         // ================================
 // PREDICTIVO: LISTENER INPUT
 // ================================
@@ -249,24 +272,6 @@ input.addEventListener("keydown", (e) => {
     searchAndZoom();
   }
 });
-
-        // Contenedor de sugerencias
-const suggestBox = document.createElement("div");
-suggestBox.style.position = "absolute";
-suggestBox.style.top = "100%";
-suggestBox.style.left = "0";
-suggestBox.style.right = "0";
-suggestBox.style.background = "#020617";
-suggestBox.style.border = "1px solid #21304d";
-suggestBox.style.borderRadius = "10px";
-suggestBox.style.marginTop = "4px";
-suggestBox.style.maxHeight = "220px";
-suggestBox.style.overflowY = "auto";
-suggestBox.style.display = "none";
-suggestBox.style.zIndex = "9999";
-
-div.style.position = "relative";
-div.appendChild(suggestBox);
 
 
         function normalizeName(str) {
@@ -407,7 +412,7 @@ async function fetchSuggestions(q) {
     return;
   }
 
-  const lat = parseFloat(best.lat);
+    const lat = parseFloat(best.lat);
   const lon = parseFloat(best.lon);
 
   if (!enabled) await setEnabled(true);
@@ -415,22 +420,16 @@ async function fetchSuggestions(q) {
   map.setView([lat, lon], 12);
 }
 
-        go.addEventListener("click", searchAndZoom);
-        input.addEventListener("keydown", (e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            searchAndZoom();
-          }
-        });
+// 👈 AQUÍ YA NO HAY MÁS LISTENERS
 
-        return div;
+return div;
       }
     });
 
-    map.addControl(new SearchControl());
+map.addControl(new SearchControl());
 
-    // Tip: Leaflet apila controles en el orden de añadido.
-    // En tu index ya añades medición primero, así que:
-    // Medición (📏📐🗑) -> ⚡ -> buscador.
-  };
+// Tip: Leaflet apila controles en el orden de añadido.
+// En tu index ya añades medición primero, así que:
+// Medición (📏📐🗑) -> ⚡ -> buscador.
+};
 })();
