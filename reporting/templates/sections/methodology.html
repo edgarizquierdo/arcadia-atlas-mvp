@@ -1,0 +1,10 @@
+<div class="page">
+  <h2>Metodología</h2>
+  <p class="muted">Modelo: {{ methodology.model_version }}</p>
+  <p>{{ methodology.description }}</p>
+  <ul>
+    {% for rule in methodology.rules %}
+      <li>{{ rule }}</li>
+    {% endfor %}
+  </ul>
+</div>

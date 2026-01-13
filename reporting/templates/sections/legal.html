@@ -1,0 +1,9 @@
+<div class="page">
+  <p class="muted">
+    {% if report_version == "client" %}
+      {{ legal.disclaimer_client }}
+    {% else %}
+      {{ legal.disclaimer_technical }}
+    {% endif %}
+  </p>
+</div>

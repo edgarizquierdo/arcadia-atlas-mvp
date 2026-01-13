@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Informe Arcadia Atlas</title>
+
+  <style>
+    /* =========================
+       Base
+    ========================= */
+    body {
+      font-family: "Inter", Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      color: #1f2937;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 8px 0;
+    }
+
+    .page {
+      page-break-after: always;
+      padding: 32px 40px;
+    }
+
+    .muted {
+      color: #6b7280;
+      font-size: 12px;
+    }
+
+    /* =========================
+       Cards & layout
+    ========================= */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .card {
+      position: relative;              /* CLAVE */
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 16px;
+      padding-right: 220px;             /* espacio reservado al mapa */
+      margin-bottom: 16px;
+      page-break-inside: avoid;
+    }
+
+    /* =========================
+       Riesgo
+    ========================= */
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 12px;
+      margin-bottom: 8px;
+    }
+
+    .risk-alto {
+      background: #fee2e2;
+      color: #991b1b;
+    }
+
+    .risk-medio {
+      background: #ffedd5;
+      color: #9a3412;
+    }
+
+    .risk-bajo {
+      background: #dcfce7;
+      color: #166534;
+    }
+
+    /* =========================
+       Listas
+    ========================= */
+    ul {
+      margin: 6px 0 0 16px;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 4px;
+    }
+
+    /* =========================
+       Jerarquía técnica
+    ========================= */
+    h4 {
+      margin-top: 20px;
+      margin-bottom: 8px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #374151;
+    }
+
+    /* =========================
+       Mini-mapa por parcela
+    ========================= */
+    .parcel-map {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 180px;
+      height: 120px;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+    }
+
+    .parcel-map img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* =========================
+   Mapa de contexto territorial
+========================= */
+.overview-map-container {
+  margin-top: 16px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  max-height: 360px;          /* CLAVE */
+}
+
+.overview-map-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.overview-caption {
+  margin-top: 8px;
+  max-width: 80%;
+}
+
+  </style>
+</head>
+
+<body>
+
+  <!-- =========================
+       Portada
+  ========================= -->
+  <div class="page">
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px;">
+    <img
+      src="assets/AtlasBioscan_logo.png"
+      alt="AtlasBioscan"
+      style="height: 150px; width: auto;"
+    />
+    <div class="muted">2026-01-08</div>
+  </div>
+
+  <h1>Informe de Riesgo de Incendio</h1>
+  <p class="muted">Arcadia Atlas – Zona de estudio</p>
+
+  <p><strong>Riesgo elevado de incendio debido a alta carga de vegetación y condiciones secas previstas.</strong></p>
+</div>
+
+  <!-- =========================
+       Resumen cliente
+  ========================= -->
+  
+
+  <!-- =========================
+       Parcelas (fichas)
+  ========================= -->
+  <div class="page">
+  <h2>Parcelas analizadas</h2>
+
+  
+
+    <h3>Parcela 1 — Parcela Norte</h3>
+
+    <div class="card">
+
+      
+        <div class="parcel-map">
+  <img
+    src="maps/parcela_norte.png"
+    alt="Mapa de la parcela Parcela Norte"
+  />
+</div>
+
+      
+
+      
+        <div class="risk-badge risk-alto">
+  ⚙️ Riesgo ALTO · Score 78
+</div>
+
+<h4>Resultados del modelo</h4>
+<ul>
+  <li>🌿 NDVI medio: 0.71</li>
+  <li>💧 NDWI medio: 0.18</li>
+  <li>⛰️ Pendiente: 32 %</li>
+  <li>🚜 Accesibilidad: BAJA</li>
+</ul>
+
+<h4>Interpretación técnica</h4>
+<p class="muted">
+  El nivel de riesgo asignado se ha obtenido mediante el modelo
+  <strong>fire-risk-v1</strong>, integrando indicadores
+  de biomasa (NDVI), humedad del combustible (NDWI), pendiente del terreno
+  y condiciones de accesibilidad operativa.
+</p>
+
+<h4>Medidas de mitigación recomendadas</h4>
+<p class="muted">
+  Las siguientes medidas se proponen para la reducción del riesgo de incendio
+  conforme a los factores identificados por el modelo.
+</p>
+
+<ul>
+  
+    <li><strong>DESBROCE</strong>: Desbroce selectivo para reducir la continuidad del combustible.</li>
+  
+    <li><strong>FAJA_CORTAFUEGOS</strong>: Creación de faja cortafuegos perimetral en el límite norte.</li>
+  
+</ul>
+      
+
+    </div>
+
+  
+
+    <h3>Parcela 2 — Parcela Sur</h3>
+
+    <div class="card">
+
+      
+        <div class="parcel-map">
+  <img
+    src="maps/parcela_sur.png"
+    alt="Mapa de la parcela Parcela Sur"
+  />
+</div>
+
+      
+
+      
+        <div class="risk-badge risk-medio">
+  ⚙️ Riesgo MEDIO · Score 52
+</div>
+
+<h4>Resultados del modelo</h4>
+<ul>
+  <li>🌿 NDVI medio: 0.55</li>
+  <li>💧 NDWI medio: 0.22</li>
+  <li>⛰️ Pendiente: 18 %</li>
+  <li>🚜 Accesibilidad: MEDIA</li>
+</ul>
+
+<h4>Interpretación técnica</h4>
+<p class="muted">
+  El nivel de riesgo asignado se ha obtenido mediante el modelo
+  <strong>fire-risk-v1</strong>, integrando indicadores
+  de biomasa (NDVI), humedad del combustible (NDWI), pendiente del terreno
+  y condiciones de accesibilidad operativa.
+</p>
+
+<h4>Medidas de mitigación recomendadas</h4>
+<p class="muted">
+  Las siguientes medidas se proponen para la reducción del riesgo de incendio
+  conforme a los factores identificados por el modelo.
+</p>
+
+<ul>
+  
+    <li><strong>MANTENIMIENTO</strong>: Mantenimiento periódico de vegetación existente.</li>
+  
+</ul>
+      
+
+    </div>
+
+  
+</div>
+
+  <!-- =========================
+       Sección técnica global
+  ========================= -->
+  
+    <div class="page">
+  <h2>Resumen técnico por parcelas</h2>
+
+  <table class="tech-table">
+    <thead>
+      <tr>
+        <th>Parcela</th>
+        <th>NDVI medio</th>
+        <th>NDWI medio</th>
+        <th>Pendiente (%)</th>
+        <th>Score</th>
+        <th>Clase</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      
+        <tr>
+          <td>1 — Parcela Norte</td>
+          <td>0.71</td>
+          <td>0.18</td>
+          <td>32</td>
+          <td>78</td>
+          <td>R3</td>
+        </tr>
+      
+        <tr>
+          <td>2 — Parcela Sur</td>
+          <td>0.55</td>
+          <td>0.22</td>
+          <td>18</td>
+          <td>52</td>
+          <td>R2</td>
+        </tr>
+      
+    </tbody>
+  </table>
+
+  <p class="muted" style="margin-top: 12px;">
+    Valores calculados a partir de los datos disponibles en la fecha de generación
+    del informe, según el modelo fire-risk-v1.
+  </p>
+</div>
+    <div class="page">
+
+  <h2>Localización y contexto territorial</h2>
+
+  <div class="overview-map-container">
+    <img
+      src="maps/overview.png"
+      alt="Mapa de localización general del área de estudio"
+    />
+  </div>
+
+  <p class="muted overview-caption">
+    Mapa general de localización de las parcelas analizadas dentro del área de estudio,
+    mostrando el contexto territorial inmediato.
+  </p>
+
+</div>
+
+    <div class="page">
+  <h2>Metodología</h2>
+  <p class="muted">Modelo: fire-risk-v1</p>
+  <p>Modelo heurístico basado en variables de vegetación, topografía y accesibilidad.</p>
+  <ul>
+    
+      <li>NDVI &gt; 0.65 incrementa el riesgo por alta biomasa</li>
+    
+      <li>Pendiente &gt; 30% incrementa la propagación potencial</li>
+    
+      <li>Accesibilidad baja dificulta las labores de extinción</li>
+    
+  </ul>
+</div>
+    <div class="page">
+  <h2>Fuentes de datos</h2>
+  <ul>
+    
+      <li>
+        <strong>Sentinel-2</strong> — SATELLITE
+         · 10 m
+         · 2026-01-05
+      </li>
+    
+      <li>
+        <strong>Modelo Digital del Terreno</strong> — TOPOGRAPHY
+         · 5 m
+        
+      </li>
+    
+  </ul>
+</div>
+  
+
+  <!-- =========================
+       Legal
+  ========================= -->
+  <div class="page">
+  <p class="muted">
+    
+      Los resultados dependen de la calidad, resolución y fecha de los datos utilizados.
+    
+  </p>
+</div>
+
+</body>
+</html>

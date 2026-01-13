@@ -1,0 +1,126 @@
+{
+  "report_version": "technical",
+
+  "meta": {
+    "report_id": "AA-2026-0001",
+    "generated_at": "2026-01-08",
+    "area_of_interest": "Arcadia Atlas – Zona de estudio"
+  },
+
+  "global_assessment": {
+    "risk_level": "ALTO",
+    "risk_score": 74,
+    "confidence": "MEDIA",
+    "key_message": "Riesgo elevado de incendio debido a alta carga de vegetación y condiciones secas previstas."
+  },
+
+  "summary": {
+    "num_parcels": 2,
+    "area_total_ha": 12.8,
+    "high_risk_parcels": 1,
+    "recommended_priority": "ALTA"
+  },
+
+  "parcels": [
+    {
+      "parcel_id": "P-01",
+      "name": "Parcela Norte",
+      "area_ha": 5.3,
+      "map_image": "parcela_norte.png",
+
+      "risk": {
+        "level": "ALTO",
+        "score": 78,
+        "class": "R3"
+      },
+
+      "risk_factors": {
+        "vegetation_density": "ALTA",
+        "slope_pct": 32,
+        "accessibility": "BAJA",
+
+        "indices": {
+          "ndvi_mean": 0.71,
+          "ndwi_mean": 0.18
+        }
+      },
+
+      "recommendations": {
+        "priority": "ALTA",
+        "actions": [
+          {
+            "type": "DESBROCE",
+            "description": "Desbroce selectivo para reducir la continuidad del combustible."
+          },
+          {
+            "type": "FAJA_CORTAFUEGOS",
+            "description": "Creación de faja cortafuegos perimetral en el límite norte."
+          }
+        ]
+      }
+    },
+
+    {
+      "parcel_id": "P-02",
+      "name": "Parcela Sur",
+      "area_ha": 7.5,
+      "map_image": "parcela_sur.png",
+
+      "risk": {
+        "level": "MEDIO",
+        "score": 52,
+        "class": "R2"
+      },
+
+      "risk_factors": {
+        "vegetation_density": "MEDIA",
+        "slope_pct": 18,
+        "accessibility": "MEDIA",
+
+        "indices": {
+          "ndvi_mean": 0.55,
+          "ndwi_mean": 0.22
+        }
+      },
+
+      "recommendations": {
+        "priority": "MEDIA",
+        "actions": [
+          {
+            "type": "MANTENIMIENTO",
+            "description": "Mantenimiento periódico de vegetación existente."
+          }
+        ]
+      }
+    }
+  ],
+
+  "methodology": {
+    "model_version": "fire-risk-v1",
+    "description": "Modelo heurístico basado en variables de vegetación, topografía y accesibilidad.",
+    "rules": [
+      "NDVI > 0.65 incrementa el riesgo por alta biomasa",
+      "Pendiente > 30% incrementa la propagación potencial",
+      "Accesibilidad baja dificulta las labores de extinción"
+    ]
+  },
+
+  "data_sources": [
+    {
+      "name": "Sentinel-2",
+      "type": "SATELLITE",
+      "resolution": "10 m",
+      "last_update": "2026-01-05"
+    },
+    {
+      "name": "Modelo Digital del Terreno",
+      "type": "TOPOGRAPHY",
+      "resolution": "5 m"
+    }
+  ],
+
+  "legal": {
+    "disclaimer_client": "Este informe tiene carácter informativo y no sustituye un estudio técnico oficial.",
+    "disclaimer_technical": "Los resultados dependen de la calidad, resolución y fecha de los datos utilizados."
+  }
+}

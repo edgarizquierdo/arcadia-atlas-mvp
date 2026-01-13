@@ -1,0 +1,31 @@
+<div class="risk-badge risk-{{ parcel.risk.level | lower }}">
+  ⚙️ Riesgo {{ parcel.risk.level }} · Score {{ parcel.risk.score }}
+</div>
+
+<h4>Resultados del modelo</h4>
+<ul>
+  <li>🌿 NDVI medio: {{ parcel.risk_factors.indices.ndvi_mean }}</li>
+  <li>💧 NDWI medio: {{ parcel.risk_factors.indices.ndwi_mean }}</li>
+  <li>⛰️ Pendiente: {{ parcel.risk_factors.slope_pct }} %</li>
+  <li>🚜 Accesibilidad: {{ parcel.risk_factors.accessibility }}</li>
+</ul>
+
+<h4>Interpretación técnica</h4>
+<p class="muted">
+  El nivel de riesgo asignado se ha obtenido mediante el modelo
+  <strong>{{ methodology.model_version }}</strong>, integrando indicadores
+  de biomasa (NDVI), humedad del combustible (NDWI), pendiente del terreno
+  y condiciones de accesibilidad operativa.
+</p>
+
+<h4>Medidas de mitigación recomendadas</h4>
+<p class="muted">
+  Las siguientes medidas se proponen para la reducción del riesgo de incendio
+  conforme a los factores identificados por el modelo.
+</p>
+
+<ul>
+  {% for action in parcel.recommendations.actions %}
+    <li><strong>{{ action.type }}</strong>: {{ action.description }}</li>
+  {% endfor %}
+</ul>

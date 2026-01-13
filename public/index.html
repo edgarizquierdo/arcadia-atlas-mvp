@@ -3,15 +3,22 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Explotaciones VirtualClima</title>
+  <title>Arcadia Atlas BioScan</title>
 
   <!-- Leaflet + Draw -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-image/leaflet-image.js"></script>
   <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
   <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/src/leaflet.geometryutil.js"></script>
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  <script src="https://unpkg.com/rbush@3.0.1/rbush.min.js"></script>
+
+  <!-- 🆕 Exportación PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 
 
   <style>
@@ -68,6 +75,28 @@
       font-size:0.9rem;
     }
 
+    /* ===============================
+   CAMPOS DE INFORME (espaciado fino)
+   =============================== */
+
+.field {
+  margin-top: 14px;
+  margin-bottom: 18px;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 12px; /* 👈 separación clara */
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+}
+
+.field-select {
+  width: 100%;
+}
+
+
     input, button, select {
       width:100%;
       padding:9px 10px;
@@ -77,6 +106,37 @@
       color:var(--text);
       font-size:0.9rem;
     }
+
+    /* ===============================
+   INPUT + BOTÓN "IR" (PARCELA)
+   =============================== */
+
+.parcel-go-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.parcel-go-row input {
+  flex: 1;
+}
+
+#goParcelBtn {
+  width: auto;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: #22c55e;
+  color: #0b1120;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+#goParcelBtn:hover {
+  background: #16a34a;
+}
+
 
     button {
       cursor:pointer;
@@ -161,8 +221,32 @@
       flex-wrap:wrap;
       gap:8px;
     }
-    .bottom-filters > * { flex:1 1 150px; }
-    .bottom-filters button { flex:0 0 auto; width:auto; padding-inline:14px; }
+    /* ================================
+   OCULTAR FILTROS NO NECESARIOS
+   ================================ */
+
+#filtroVariedad,
+#filtroTipoCultivo,
+#filtroAno {
+  display: none;
+}
+
+    /* ✅ Filtros compactos como los superiores */
+.bottom-filters > input,
+.bottom-filters > select {
+  flex: 0 0 auto;
+  min-width: 180px;
+  max-width: 220px;
+}
+
+/* Botón compacto */
+.bottom-filters > button {
+  flex: 0 0 auto;
+  width: auto;
+  padding-inline: 14px;
+}
+
+    
 
     .table-wrapper {
       margin-top:6px;
@@ -396,6 +480,218 @@ body.menu-collapsed .aside-header h1 {
       box-shadow: 0 8px 24px rgba(0,0,0,.35);
     }
 
+    /* ================================
+   ETIQUETAS DE PARCELA (CALLOUT)
+   ================================ */
+
+.leaflet-tooltip.parcel-label {
+  position: relative;
+  background: white;
+  color: #0f172a;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  border: none;
+}
+
+/* Triangulito inferior */
+.leaflet-tooltip.parcel-label::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid white;
+}
+
+
+/* ================================
+   ETIQUETAS DE PARCELA (DIVICON)
+   ================================ */
+
+.parcel-label-div {
+  background: white;
+  color: #0f172a;
+  padding: 4px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.18);
+  border: none;
+  position: relative;
+  white-space: nowrap;
+}
+
+/* Triangulito inferior */
+.parcel-label-div::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid white;
+}
+
+
+
+
+/* ==================================================
+   LISTADO DE PARCELAS – COLUMNAS OCULTAS
+   (Variedad, Tipo cultivo, Año)
+   ================================================== */
+
+/* Variedad → columna 3 */
+.bottom-panel table thead th:nth-child(3),
+.bottom-panel table tbody td:nth-child(3),
+
+/* Tipo cultivo → columna 5 */
+.bottom-panel table thead th:nth-child(5),
+.bottom-panel table tbody td:nth-child(5),
+
+/* Año → columna 8 */
+.bottom-panel table thead th:nth-child(8),
+.bottom-panel table tbody td:nth-child(8) {
+  display: none;
+}
+
+/* ==================================================
+   IPU — Botón info ⓘ (popup mapa)
+   ================================================== */
+.ipu-info-btn {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 50%;
+  border: 1px solid #9ca3af;   /* gris suave */
+  background: transparent;
+
+  color: #6b7280;              /* gris medio */
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+
+  cursor: pointer;
+  padding: 0;
+  margin-left: 2px;
+
+  transition: all 0.15s ease;
+}
+
+.ipu-info-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+  border-color: #64748b;
+}
+
+.ipu-info-btn:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.25);
+}
+
+/* ==================================================
+   IPU — Popup informativo
+   ================================================== */
+
+.ipu-info-popup {
+  position: absolute;
+  top: 22px;
+  right: 0;
+  width: 220px;
+  padding: 14px 12px 12px;
+  border-radius: 10px;
+  background: rgba(15,23,42,0.95);
+  color: #e5e7eb;
+  font-size: 11.5px;
+  line-height: 1.4;
+  border: 1px solid #334155;
+  z-index: 5;
+
+  /* estado cerrado */
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.ipu-info-popup.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.ipu-info-popup ul {
+  margin: 4px 0 0 14px;
+  padding: 0;
+}
+
+.ipu-close {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  width: 14px;
+  height: 14px;
+
+  border-radius: 50%;
+  border: 1px solid #334155;
+  background: #0f172a;
+
+  color: #cbd5f5;
+  font-size: 11px;
+  line-height: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+  pointer-events: auto; /* 🔑 clave */
+}
+
+.ipu-legend {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+}
+
+.ipu-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.dot.red    { background: #ef4444; }
+.dot.orange { background: #f59e0b; }
+.dot.yellow { background: #eab308; }
+.dot.green  { background: #22c55e; }
+
+
+
+
+
 </style>
 </head>
 
@@ -411,6 +707,93 @@ body.menu-collapsed .aside-header h1 {
         <div id="aside-body">
           <hr style="margin:12px 0;border-color:#21304d">
 
+          <!-- 🔥 MODO RIESGO DE INCENDIO -->
+<label style="margin-top:12px">Capas</label>
+<div class="row">
+  <button id="toggle-fire-risk" class="ghost" type="button">
+    🧯 Riesgo de incendio
+  </button>
+</div>
+
+<p class="muted" id="fire-risk-hint" style="margin-top:6px; display:none;">
+  Modo riesgo activado: las parcelas se colorean según su riesgo.
+</p>
+
+<!-- 🔥 RESUMEN GLOBAL DE RIESGO -->
+<div id="fire-risk-summary" style="display:none; margin-top:12px; padding:10px; border:1px solid #21304d; border-radius:10px; background:#0e1626;">
+  <b>🔥 Riesgo de incendio</b>
+
+  <div style="margin-top:6px; font-size:0.85rem">
+    <div>🔴 Alto: <b id="risk-count-high">0</b></div>
+    <div>🟡 Moderado: <b id="risk-count-mid">0</b></div>
+    <div>🟢 Bajo: <b id="risk-count-low">0</b></div>
+  </div>
+
+  <div style="margin-top:6px; font-size:0.8rem">
+    <span id="risk-window-text">Sin ventana crítica activa</span>
+  </div>
+
+  <div style="margin-top:8px">
+    <button id="btn-focus-high-risk" class="ghost" type="button" style="width:100%">
+      Ver parcelas prioritarias
+    </button>
+  </div>
+</div>
+<hr style="margin:12px 0;border-color:#21304d">
+
+<label>Informe</label>
+
+<!-- =========================
+     Tipo de informe (por propietario)
+========================= -->
+<div class="field">
+  <label for="reportOwnerType" class="field-label">Tipo de propietario</label>
+  <select id="reportOwnerType" class="field-select">
+    <option value="private" selected>Persona privada</option>
+    <option value="public">Ente público</option>
+  </select>
+
+</div>
+
+
+<div class="row">
+  <button id="btn-export-pdf" class="ghost" type="button">
+    📄 Exportar PDF
+  </button>
+
+  <button id="btn-send-email" class="ghost" type="button">
+    ✉️ Enviar email
+  </button>
+</div>
+
+<button id="btn-send-whatsapp" class="ghost" type="button" style="margin-top:6px;width:100%">
+  🟢 Enviar por WhatsApp
+</button>
+
+<!-- 🤖 ASISTENTE FORESTAL IA -->
+<div id="ai-panel"
+     style="display:none; margin-top:14px; padding:12px;
+            border:1px solid #334155; border-radius:12px;
+            background:#020617;">
+
+  <b>🤖 Asistente forestal</b>
+
+  <p id="ai-context" class="muted" style="margin-top:6px">
+    Selecciona una parcela y pulsa “Preguntar”.
+  </p>
+
+  <div id="ai-response"
+       style="margin-top:8px; font-size:0.85rem; line-height:1.4">
+    <!-- respuesta IA -->
+  </div>
+
+  <div style="margin-top:10px">
+    <button id="btn-ai-close" class="ghost" type="button">
+      Cerrar
+    </button>
+  </div>
+</div>
+
           <label>ID Usuario</label>
           <div class="row">
             <input id="cliente" placeholder="ej. can-rossell-001" />
@@ -418,7 +801,20 @@ body.menu-collapsed .aside-header h1 {
           </div>
 
           <label>Parcela seleccionada</label>
-          <input id="parcelaNombre" placeholder="Nombre o código SIGPAC" />
+<div class="parcel-go-row">
+  <input
+    id="parcelaNombre"
+    placeholder="Nombre o código SIGPAC"
+    readonly
+  />
+  <button
+    id="goParcelBtn"
+    type="button"
+    onclick="goToSelectedParcel()"
+  >
+    Ir
+  </button>
+</div>
 
           <label>Datos de la parcela</label>
           <input id="parcelaCultivo" placeholder="Cultivo (ej. VINYA)" />
@@ -454,6 +850,7 @@ body.menu-collapsed .aside-header h1 {
             <button id="btn-save" class="primary">Guardar explotación</button>
             <button id="btn-share" class="ghost">Compartir enlace</button>
           </div>
+
 
           <div class="row" style="margin-top:8px">
             <button id="btn-export" class="ghost">Exportar GeoJSON</button>
@@ -496,6 +893,13 @@ body.menu-collapsed .aside-header h1 {
           <select id="filtroAno"><option value="">Todos los años</option></select>
           <select id="filtroPropietario"><option value="">Todos los propietarios</option></select>
           <select id="filtroPendent"><option value="">Todas las pendientes</option></select>
+          <select id="filtroICA">
+  <option value="">ICA (todos)</option>
+  <option value="low">ICA bajo (0–30)</option>
+  <option value="mid">ICA medio (31–60)</option>
+  <option value="high">ICA alto (61–100)</option>
+</select>
+
           <button id="btn-clear-filtros" class="ghost">Limpiar filtros</button>
         </div>
       </div>
@@ -515,6 +919,8 @@ body.menu-collapsed .aside-header h1 {
               <th data-sort="propietario">Propietario</th>
               <th data-sort="pendent">Pendiente</th>
               <th data-sort="ano">Año</th>
+              <th data-sort="fire_risk">🔥 Riesgo</th>
+              <th data-sort="ica">ICA</th>
               <th data-sort="ha">ha</th>
               <th>Acciones</th>
             </tr>
@@ -648,21 +1054,63 @@ const MUNICIPIOS_TARRAGONA = {
 };
 
   // ===== Mapa satélite + etiquetas de municipios (Esri) =====
-  const map = L.map('map').setView([41.3851, 2.1734], 13);
-  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+  const map = L.map('map', {
+  preferCanvas: true
+}).setView([41.3851, 2.1734], 13);
+  // ===============================
+// Pane superior para red eléctrica
+// ===============================
+map.createPane('powerPane');
+map.getPane('powerPane').style.zIndex = 720; // por encima de parcelas
+map.getPane('powerPane').style.pointerEvents = 'auto';
+
+  const imageryLayer = L.tileLayer(
+  'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+  {
     maxZoom: 19,
-    attribution: '© Esri, Maxar'
-  }).addTo(map);
+    attribution: '© Esri, Maxar',
+    crossOrigin: true
+  }
+).addTo(map);
 
   map.createPane('labels');
   map.getPane('labels').style.zIndex = 650;
   map.getPane('labels').style.pointerEvents = 'none';
 
-  L.tileLayer(
-    'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
-    { pane:'labels', attribution:'© Esri' }
-  ).addTo(map);
+  const labelsLayer = L.tileLayer(
+  'https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}',
+  {
+    pane: 'labels',
+    attribution: '© Esri',
+    crossOrigin: true
+  }
+).addTo(map);
 
+
+  let fireRiskMode = false;
+
+  // ===============================
+// Pane y capa para etiquetas de parcelas (ANCLADAS)
+// ===============================
+map.createPane('parcelLabels');
+map.getPane('parcelLabels').style.zIndex = 450; // 👈 CLAVE
+map.getPane('parcelLabels').style.pointerEvents = 'none';
+
+// Capa dedicada SOLO a etiquetas de parcelas
+let parcelLabelsLayer = L.layerGroup([], {
+  pane: 'parcelLabels'
+}).addTo(map);
+
+
+  // ===============================
+// 🤖 Estado Asistente Forestal IA
+// ===============================
+const AI = {
+  open: false,
+  featureId: null,
+  lastContext: null
+};
+  
   let S = {
     fc:{type:'FeatureCollection',features:[]},
     selId:null,
@@ -733,6 +1181,56 @@ const MUNICIPIOS_TARRAGONA = {
     }
     return m2 / 10000;
   }
+  // ===============================
+// ICA — Motor (por parcela)
+// ===============================
+function computeICA(feature) {
+  if (!feature || !feature.geometry) return null;
+
+  const p = feature.properties || {};
+  let score = 0;
+
+  // 1. Superficie real (ha) → proxy de biomasa
+  const ha = featureAreaHa(feature);
+  if (!isNaN(ha)) {
+    score += Math.min(ha * 8, 30); // máx 30
+  }
+
+  // 2. Tipo de cultivo
+  if ((p.cultivo || '').toUpperCase() === 'VINYA') {
+    score += 10;
+  }
+
+  // 3. Variedad
+  if ((p.variedad || '').toLowerCase().includes('garnatxa')) {
+    score += 10;
+  }
+
+  // 4. Pendiente (usa TU normalización)
+  const pendStr = getPendentValue(p);
+  const pend = parseFloat(String(pendStr).replace(',', '.'));
+  if (!isNaN(pend)) {
+    score += Math.min(pend * 1.2, 25);
+  }
+
+  // 5. Edad del cultivo
+  const year = parseInt(p.ano_plantacion, 10);
+  if (!isNaN(year)) {
+    const edad = new Date().getFullYear() - year;
+    score += Math.min(edad * 0.6, 25);
+  }
+
+  return Math.min(Math.round(score), 100);
+}
+
+function classifyICA(value) {
+  if (value === null || value === undefined) return null;
+  if (value <= 30) return { level: 'BAJO', color: '#22c55e' };
+  if (value <= 60) return { level: 'MEDIO', color: '#f59e0b' };
+  return { level: 'ALTO', color: '#ef4444' };
+}
+
+
 
   const drawn = new L.FeatureGroup().addTo(map);
   const drawCtl = new L.Control.Draw({
@@ -850,7 +1348,13 @@ const MUNICIPIOS_TARRAGONA = {
       return div;
     }
   });
-  map.addControl(new MeasureControl());
+map.addControl(new MeasureControl());
+
+
+// Si el usuario entra en "Nueva parcela", apagamos medición (evita solapes)
+document.getElementById('btn-draw')?.addEventListener('click', ()=>measureSetMode(null));
+
+
 
   // Si el usuario entra en "Nueva parcela", apagamos medición (evita solapes)
   document.getElementById('btn-draw')?.addEventListener('click', ()=>measureSetMode(null));
@@ -1245,6 +1749,8 @@ const MUNICIPIOS_TARRAGONA = {
   // ===== Parcelas: render mapa + tabla =====
   let layerGroup=null;
   let featureLayers = {};
+  let lastRenderedFeatures = []; // para export PDF (filtradas + ordenadas)
+
 
   function centroidFromLayer(layer){
     return layer.getBounds().getCenter();
@@ -1332,6 +1838,24 @@ function matchesFilter(feat){
   if (S.filters.tipo_cultivo && (tipo || '') !== S.filters.tipo_cultivo) return false;
   if (S.filters.propietario && (p.propietario || '') !== S.filters.propietario) return false;
   if (S.filters.pendent && (pend || '') !== S.filters.pendent) return false;
+    // ===============================
+  // 🔥 Filtro por ICA (rangos)
+  // ===============================
+  if (S.filters.ica) {
+    // si aún no está calculado, lo calculamos ahora
+    let ica = p.ica;
+    if (ica === undefined || ica === null || isNaN(ica)) {
+      ica = computeICA(feat);
+      p.ica = ica;
+    }
+
+    if (ica === null || isNaN(ica)) return false;
+
+    if (S.filters.ica === 'low'  && !(ica >= 0  && ica <= 30)) return false;
+    if (S.filters.ica === 'mid'  && !(ica >= 31 && ica <= 60)) return false;
+    if (S.filters.ica === 'high' && !(ica >= 61 && ica <= 100)) return false;
+  }
+
   if (S.filters.ano && (p.ano_plantacion || '').toString() !== S.filters.ano) return false;
 
   if (S.filters.search){
@@ -1364,6 +1888,16 @@ function matchesFilter(feat){
           va = pa.ano_plantacion ? parseInt(pa.ano_plantacion,10) : 0;
           vb = pb.ano_plantacion ? parseInt(pb.ano_plantacion,10) : 0;
           break;
+        case 'fire_risk':
+  const order = { 'ALTO': 3, 'MODERADO': 2, 'BAJO': 1 };
+  va = order[pa.fire_risk?.level] || 0;
+  vb = order[pb.fire_risk?.level] || 0;
+  break;
+  case 'ica':
+  va = pa.ica ?? -1;
+  vb = pb.ica ?? -1;
+  break;
+
         case 'ha': va = featureAreaHa(a); vb = featureAreaHa(b); break;
         default: return 0;
       }
@@ -1477,32 +2011,1538 @@ $('#parcelaTipoCultivo').value = tipo || '';
     renderMarkers();
     markersPage = 1;
     rebuildMarkersTable();
+    // ===============================
+// ICA — actualización real por parcela seleccionada
+// ===============================
+const icaEl = document.querySelector('#ica-box .ica-value');
+const box = document.getElementById('ica-box');
+
+if (icaEl && box && f) {
+  const ica = computeICA(f);
+  f.properties.ica = ica;
+
+  icaEl.textContent = (ica !== null && !isNaN(ica)) ? ica : '—';
+
+  // 🔥 Color del ICA según RIESGO (OPCIÓN B)
+  const risk = f?.properties?.fire_risk?.level;
+
+  let color = '#94a3b8';
+  if (risk === 'BAJO') color = '#22c55e';
+  else if (risk === 'MODERADO') color = '#f59e0b';
+  else if (risk === 'ALTO') color = '#ef4444';
+
+  icaEl.style.color = color;
+  box.style.borderColor = color;
+}
+}
+
+
+
+  // ===============================
+// Estilo de parcelas según riesgo
+// ===============================
+function fireRiskStyle(f){
+
+  const base = {
+    color: '#111827',
+    weight: 2,
+    fillColor: '#6b7280',
+    fillOpacity: 0.5
+  };
+
+  if (!fireRiskMode) return base;
+
+  const risk = f?.properties?.fire_risk?.level;
+
+  if (!risk) return base;
+
+  if (risk === 'BAJO') {
+    return {
+      color: '#065f46',
+      weight: 2,
+      fillColor: '#22c55e',
+      fillOpacity: 0.45
+    };
   }
 
-  function render(){
-    updateFilterOptions();
+  if (risk === 'MODERADO') {
+    return {
+      color: '#92400e',
+      weight: 2,
+      fillColor: '#f59e0b',
+      fillOpacity: 0.50
+    };
+  }
 
-    let featsToShow = S.fc.features.filter(matchesFilter);
-    sortFeatures(featsToShow);
+  // ALTO
+  return {
+    color: '#7f1d1d',
+    weight: 2,
+    fillColor: '#dc2626',
+    fillOpacity: 0.55
+  };
+}
+  
+
+// ===============================
+// 🤖 Análisis forestal experto
+// ===============================
+function buildForestAnalysis(feature){
+  if (!feature || !feature.properties) {
+    return '<p>No hay información suficiente para realizar un análisis forestal.</p>';
+  }
+
+  const p = feature.properties;
+  const r = p.fire_risk;
+
+  if (!r){
+    return `
+      <p>
+        Esta parcela no dispone todavía de un cálculo de riesgo de incendio.
+        Se recomienda activar el análisis para disponer de criterios preventivos.
+      </p>
+    `;
+  }
+
+  let html = '';
+
+  html += `
+    <p>
+      <b>Diagnóstico forestal:</b><br>
+      La parcela presenta un <b>riesgo de incendio ${r.level.toLowerCase()}</b>,
+      con un índice global de <b>${r.score}/100</b>.
+    </p>
+  `;
+
+  if (r.window_h){
+    html += `
+      <p>
+        ⚠️ <b>Ventana crítica activa</b>: se esperan condiciones favorables a la ignición
+        durante las próximas <b>${r.window_h} horas</b>.
+      </p>
+    `;
+  } else {
+    html += `
+      <p>
+        Actualmente no se detecta una ventana crítica inmediata,
+        aunque se recomienda mantener vigilancia preventiva.
+      </p>
+    `;
+  }
+
+  if (r.factors?.length){
+    html += `
+      <p><b>Factores que influyen en el riesgo:</b></p>
+      <ul>
+        ${r.factors.map(f => `<li>${f}</li>`).join('')}
+      </ul>
+    `;
+  }
+
+  if (r.vegetation){
+    const vig = r.vegetation.vigor;
+    const hum = r.vegetation.humidity;
+
+    html += `
+      <p><b>Estado de la vegetación:</b></p>
+      <ul>
+        <li>
+          🌿 <b>Vigor medio:</b> ${vig.value}
+          (${vig.trend === 'down' ? 'tendencia descendente' :
+            vig.trend === 'up' ? 'tendencia creciente' : 'estable'})
+        </li>
+        <li>
+          💧 <b>Humedad estimada:</b> ${hum.value}
+          (${hum.trend === 'down' ? 'en descenso' :
+            hum.trend === 'up' ? 'en aumento' : 'estable'})
+        </li>
+      </ul>
+      <p class="muted">
+        La combinación de vigor y humedad condiciona directamente la
+        disponibilidad de combustible fino.
+      </p>
+    `;
+  }
+
+  if (r.recommendations?.length){
+    html += `
+      <p><b>Recomendaciones técnicas:</b></p>
+      <ul>
+        ${r.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+      </ul>
+    `;
+  }
+
+  html += `
+    <hr>
+    <p class="muted">
+      Análisis generado automáticamente a partir de condiciones
+      meteorológicas, estado de la vegetación y características del terreno.
+    </p>
+  `;
+
+  return html;
+}
+
+function updateFireRiskSummary(){
+  const box = document.getElementById('fire-risk-summary');
+  if (!box) return;
+
+  let high = 0, mid = 0, low = 0;
+  let maxWindow = 0;
+
+  S.fc.features.forEach(f=>{
+    const r = f.properties?.fire_risk;
+    if (!r) return;
+
+    if (r.level === 'ALTO') high++;
+    else if (r.level === 'MODERADO') mid++;
+    else if (r.level === 'BAJO') low++;
+
+    if (r.window_h) {
+      maxWindow = Math.max(maxWindow, r.window_h);
+    }
+  });
+
+  document.getElementById('risk-count-high').textContent = high;
+  document.getElementById('risk-count-mid').textContent = mid;
+  document.getElementById('risk-count-low').textContent = low;
+
+  const winText = document.getElementById('risk-window-text');
+  if (maxWindow > 0){
+    winText.textContent = `Ventana crítica activa · próximas ${maxWindow} h`;
+    winText.style.color = '#fca5a5';
+  } else {
+    winText.textContent = 'Sin ventana crítica activa';
+    winText.style.color = '#94a3b8';
+  }
+
+  // mostrar solo si el modo riesgo está activo
+  box.style.display = fireRiskMode ? 'block' : 'none';
+}
+
+function buildPDFReportHTML(features, coverMapDataUrl, ownerType = 'private'){
+  const fecha = new Date().toLocaleString('es-ES');
+
+  let high = 0, mid = 0, low = 0;
+  features.forEach(f=>{
+    const lvl = f?.properties?.fire_risk?.level;
+    if (lvl === 'ALTO') high++;
+    else if (lvl === 'MODERADO') mid++;
+    else if (lvl === 'BAJO') low++;
+  });
+
+  // ===============================
+  // TIPO DE INFORME
+  // ===============================
+  const isClientReport = ownerType === 'private';
+  const isTechnicalReport = ownerType === 'public';
+
+
+  /* ===============================
+     PORTADA EJECUTIVA – VARIABLES
+     =============================== */
+
+  const zona = features[0]?.properties?.municipio || 'Zona analizada';
+
+  let globalLevel = 'BAJO';
+  if (high > 0) globalLevel = 'ALTO';
+  else if (mid > 0) globalLevel = 'MODERADO';
+
+  let globalMessage =
+    globalLevel === 'ALTO'
+      ? 'Se recomienda incrementar la vigilancia, evitar trabajos con maquinaria y reforzar medidas preventivas.'
+      : globalLevel === 'MODERADO'
+      ? 'Se recomienda seguimiento activo de la evolución meteorológica y del estado de la vegetación.'
+      : 'Situación estable. Mantener buenas prácticas de prevención.';
+
+  const window_h = 72;
+
+  /* ===============================
+     TABLA RESUMEN
+     =============================== */
+
+  let rows = '';
+  features.forEach(f=>{
+    const p = f.properties || {};
+    const r = p.fire_risk || {};
+    rows += `
+      <tr>
+        <td>${labelOf(f)}</td>
+        <td>${getMunicipioValue(p) || '-'}</td>
+        <td>${r.level || '-'}</td>
+        <td>${p.ica ?? '—'}</td>
+        <td style="text-align:right">${featureAreaHa(f).toFixed(2)}</td>
+      </tr>
+    `;
+  });
+
+  let cards = '';
+  function riskIcon(level){
+  if (level === 'ALTO') return '🔥';
+  if (level === 'MODERADO') return '⚠️';
+  return '🌿'; // BAJO o fallback
+}
+features.forEach(f=>{
+  const p = f.properties || {};
+  const r = p.fire_risk || {};
+  const level = r.level || 'BAJO';
+
+const miniMap = generateMiniMapForFeature(f);
+
+cards += `
+  <div class="card ${level}">
+    
+
+    <div class="card-header">
+      <div class="card-title">
+        <span class="risk-icon">${riskIcon(level)}</span>
+        ${labelOf(f)}
+      </div>
+      <div class="card-badge ${level}">${level}</div>
+    </div>
+
+    <div style="
+  display:flex;
+  gap:14px;
+  align-items:flex-start;
+">
+
+  <!-- DATOS -->
+  <div style="flex:1">
+    <div class="card-grid">
+      <div><b>Municipio</b><br>${getMunicipioValue(p) || '-'}</div>
+      <div><b>Superficie</b><br>${featureAreaHa(f).toFixed(2)} ha</div>
+      <div><b>Score</b><br>${r.score ?? '-'}/100</div>
+      <div><b>Ventana crítica</b><br>${r.window_h ? r.window_h + ' h' : 'No activa'}</div>
+    </div>
+  </div>
+
+  <!-- MINI MAPA -->
+  ${miniMap ? `
+    <div style="
+      width:120px;
+      min-width:120px;
+      border-radius:12px;
+      overflow:hidden;
+      border:1px solid #e5e7eb;
+      background:#f8fafc;
+    ">
+      <img
+        src="${miniMap}"
+        alt="Mini mapa de la parcela"
+        style="display:block;width:100%;height:auto"
+      />
+    </div>
+  ` : ''}
+
+</div>
+
+
+
+      ${isTechnicalReport ? `
+  <div class="card-section">
+    <b>Factores dominantes</b>
+    <ul>
+      ${(r.factors || []).map(x => `<li>${x}</li>`).join('')}
+    </ul>
+  </div>
+` : ''}
+
+<div class="card-section">
+  <b>Recomendaciones</b>
+  <ul>
+    ${(r.recommendations || []).map(x => `<li>${x}</li>`).join('')}
+  </ul>
+</div>
+
+    </div>
+  `;
+});
+
+  return `
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Informe riesgo incendio</title>
+<style>
+/* ==================================================
+   RESET TOTAL PARA PDF (evita herencias de la app)
+   ================================================== */
+
+/* ===============================
+   CABECERA DEL INFORME
+   =============================== */
+.report-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #e5e7eb;
+
+  /* 👇 PASO 1.3 — evitar cortes entre páginas */
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.report-header img {
+  height: 72px;
+  width: auto;
+}
+
+.report-title h1 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.report-title .subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+
+* {
+  box-sizing: border-box;
+  background: transparent !important;
+  color: #0f172a !important;
+}
+
+html, body {
+  background: #ffffff !important;
+  color: #0f172a !important;
+  margin: 0;
+  padding: 32px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, Arial, sans-serif;
+}
+
+/* ==================================================
+   TIPOGRAFÍA
+   ================================================== */
+body > h1 {
+  font-size: 22px;
+  margin-bottom: 4px;
+}
+
+h2 {
+  margin-top: 28px;
+  font-size: 18px;
+  border-bottom: 2px solid #e5e7eb;
+  padding-bottom: 4px;
+}
+
+.muted {
+  color: #6b7280 !important;
+  font-size: 13px;
+}
+
+/* ==================================================
+   KPIs
+   ================================================== */
+.kpis {
+  display: flex;
+  gap: 24px;
+  margin: 16px 0;
+}
+
+.kpi {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px 16px;
+  min-width: 120px;
+  background: #ffffff !important;
+}
+
+.kpi .n {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* ==================================================
+   TABLAS (CLAVE PARA ELIMINAR FRANJAS NEGRAS)
+   ================================================== */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+  font-size: 13px;
+}
+
+/* ===============================
+   TABLA MULTIPÁGINA PDF
+   =============================== */
+
+/* Repetir cabecera de tabla en cada página */
+thead {
+  display: table-header-group;
+}
+
+/* Evitar que una fila se parta entre páginas */
+tr {
+  page-break-inside: avoid;
+}
+
+/* Evitar cortes raros en celdas */
+td, th {
+  page-break-inside: avoid;
+}
+
+thead {
+  background: #f3f4f6 !important;
+}
+
+th {
+  text-align: left;
+  padding: 8px;
+  border-bottom: 2px solid #d1d5db;
+  background: #f3f4f6 !important;
+}
+
+td {
+  padding: 8px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff !important;
+}
+
+/* 🔴 ESTO ES LO QUE QUITA LAS FRANJAS */
+tbody tr {
+  background: #ffffff !important;
+}
+
+tbody tr:nth-child(even) {
+  background: #f8fafc !important;
+}
+
+/* ==================================================
+   BADGES DE RIESGO
+   ================================================== */
+.badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.ALTO {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+}
+
+.badge.MODERADO {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+.badge.BAJO {
+  background: #dcfce7 !important;
+  color: #065f46 !important;
+}
+
+/* ==================================================
+   TARJETAS PREMIUM POR PARCELA
+   ================================================== */
+.card {
+  border: 1px solid #e5e7eb;
+  border-left: 6px solid #94a3b8;
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin-top: 10px;
+  background: #ffffff !important;
+  page-break-inside: avoid;
+}
+
+/* === COLORES POR RIESGO === */
+.card.ALTO {
+  border-left-color: #dc2626;
+}
+
+.card.MODERADO {
+  border-left-color: #f59e0b;
+}
+
+.card.BAJO {
+  border-left-color: #16a34a;
+}
+
+/* ==================================================
+   CABECERA TARJETA
+   ================================================== */
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.card-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  letter-spacing: 0.15px;
+}
+
+.risk-icon{
+  display: inline-block;
+  font-size: 14px;
+  line-height: 1;
+  margin-right: 6px;
+}
+
+/* Badge */
+.card-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.card-badge.ALTO {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.card-badge.MODERADO {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.card-badge.BAJO {
+  background: #dcfce7;
+  color: #065f46;
+}
+
+/* ==================================================
+   GRID DE DATOS
+   ================================================== */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  font-size: 12.5px;
+  margin: 6px 0 8px;
+}
+
+.card-grid b {
+  font-size: 12px;
+  color: #475569;
+}
+
+/* ==================================================
+   SECCIONES INTERNAS
+   ================================================== */
+.card-section {
+  margin-top: 6px;
+  font-size: 12.5px;
+}
+
+.card-section b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: #475569;
+}
+
+.card-section ul {
+  margin: 0;
+  padding-left: 14px;
+}
+
+.card-section li {
+  margin-bottom: 2px;
+}
+
+/* ===============================
+   SALTO DE PÁGINA CONTROLADO
+   =============================== */
+.page-break {
+  page-break-before: always;
+  break-before: page;
+}
+
+/* ==================================================
+   PORTADA
+   ================================================== */
+.cover{
+  page-break-after: always;
+  break-after: page;
+  min-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.cover-top{
+  display:flex;
+  align-items:center;
+  gap: 18px;
+}
+
+.cover-top img{
+  height: 150px;
+  width: auto;
+}
+
+.cover-title h1{
+  margin:0;
+  font-size: 26px;
+  line-height: 1.15;
+}
+
+.cover-title .subtitle{
+  font-size: 14px;
+  color: #64748b !important;
+  margin-top: 4px;
+}
+
+.cover-kpis{
+  display:flex;
+  gap: 16px;
+  margin-top: 18px;
+}
+
+.cover-kpi{
+  flex:1;
+  border:1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 12px;
+  text-align:center;
+  background:#ffffff !important;
+}
+
+.cover-kpi .n{
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.cover-footer{
+  font-size: 12px;
+  color: #64748b !important;
+  text-align:center;
+}
+
+/* ===============================
+   ALERTA CENTRAL PORTADA
+   =============================== */
+
+.summary-main.alert{
+  text-align: center;
+  padding: 36px 28px;
+  border-radius: 18px;
+  background: #fee2e2 !important;
+  border: 2px solid #dc2626;
+}
+
+.summary-main.alert.MODERADO{
+  background: #fef3c7 !important;
+  border-color: #f59e0b;
+}
+
+.summary-main.alert.BAJO{
+  background: #dcfce7 !important;
+  border-color: #16a34a;
+}
+
+.summary-alert-title{
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.summary-alert-window{
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+
+/* ==================================================
+   IMPRESIÓN
+   ================================================== */
+@media print {
+
+  @page {
+    margin: 20mm 18mm 24mm 18mm;
+  }
+
+  body {
+    background: #ffffff !important;
+  }
+
+  footer.report-footer {
+    position: fixed;
+    bottom: 0mm;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 11px;
+    color: #64748b;
+  }
+}
+</style>
+</head>
+
+<body>
+
+${isTechnicalReport ? `
+  <div style="
+    padding:14px;
+    margin-bottom:18px;
+    border:3px solid #dc2626;
+    border-radius:12px;
+    background:#fee2e2;
+    color:#7f1d1d;
+    font-weight:800;
+    font-size:14px;
+    text-align:center;
+  ">
+    INFORME TÉCNICO — DESTINADO A ENTE PÚBLICO<br>
+    Documento de apoyo a la gestión y planificación preventiva
+  </div>
+` : `
+  <div style="
+    padding:14px;
+    margin-bottom:18px;
+    border:3px solid #16a34a;
+    border-radius:12px;
+    background:#dcfce7;
+    color:#065f46;
+    font-weight:800;
+    font-size:14px;
+    text-align:center;
+  ">
+    INFORME PARA CLIENTE PRIVADO<br>
+    Documento informativo de carácter orientativo
+  </div>
+`}
+
+<!-- ===============================
+     PORTADA
+     =============================== -->
+<div class="cover">
+
+  <!-- CABECERA -->
+  <div class="cover-top">
+    <img src="AtlasBioscan_logo.png" alt="Atlas BioScan Catalonia" />
+    <div class="cover-title">
+      <h1>Informe de riesgo de incendio</h1>
+      <div class="subtitle">Arcadia Atlas · BioScan Catalonia</div>
+    </div>
+  </div>
+
+  <!-- ALERTA CENTRAL -->
+  <div class="summary-main alert ${globalLevel}">
+    <div class="summary-alert-title">
+      RIESGO ${globalLevel} DE INCENDIO
+    </div>
+    <div class="summary-alert-window">
+      Próximas ${window_h} horas
+    </div>
+  </div>
+
+
+  <!-- KPIs -->
+  <div class="cover-kpis">
+    <div class="cover-kpi">
+      🔥
+      <div class="n">${high}</div>
+      <div>Riesgo alto</div>
+    </div>
+    <div class="cover-kpi">
+      ⚠️
+      <div class="n">${mid}</div>
+      <div>Riesgo moderado</div>
+    </div>
+    <div class="cover-kpi">
+      🌿
+      <div class="n">${low}</div>
+      <div>Riesgo bajo</div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="cover-footer">
+    Informe generado el ${fecha}<br>
+    Arcadia Atlas — BioScan Catalonia
+  </div>
+
+</div>
+  
+<div class="report-header">
+  <img src="AtlasBioscan_logo.png" alt="Atlas BioScan Catalonia" />
+  <div class="report-title">
+    <h1>Informe de riesgo de incendio</h1>
+    <div class="subtitle">Arcadia Atlas · BioScan Catalonia</div>
+  </div>
+</div>
+
+${isClientReport ? `
+<p class="muted">
+Este informe proporciona una visión clara y comprensible del riesgo de
+incendio de las parcelas analizadas, con recomendaciones prácticas para
+la prevención y la toma de decisiones.
+</p>
+` : `
+<p class="muted">
+Informe técnico de riesgo de incendio basado en variables meteorológicas,
+estado de la vegetación, topografía y análisis de combustible, orientado
+a gestión forestal y planificación preventiva.
+</p>
+`}
+
+${isTechnicalReport ? `
+<h2>Metodología de análisis</h2>
+
+<p>
+El presente informe se ha generado mediante un sistema automatizado de
+análisis territorial que integra información geoespacial, variables
+meteorológicas y parámetros de estado de la vegetación.
+</p>
+
+<ul>
+  <li>
+    <b>Datos meteorológicos:</b> temperatura, humedad relativa, viento y
+    condiciones previstas a corto plazo.
+  </li>
+  <li>
+    <b>Estado de la vegetación:</b> estimado a partir de indicadores de vigor
+    y humedad (NDVI/NDWI u otros proxies).
+  </li>
+  <li>
+    <b>Características del terreno:</b> superficie de la parcela, pendiente
+    y continuidad del combustible.
+  </li>
+</ul>
+
+<p>
+El nivel de riesgo (bajo, moderado o alto) y el índice numérico asociado
+se calculan a partir de reglas heurísticas y ponderaciones técnicas,
+orientadas a la prevención de incendios forestales.
+</p>
+
+<h3>Indicadores de vegetación</h3>
+
+<p>
+El análisis del estado de la vegetación se apoya en indicadores espectrales
+habitualmente utilizados en teledetección y gestión forestal:
+</p>
+
+<ul>
+  <li>
+    <b>NDVI (Normalized Difference Vegetation Index):</b>
+    indicador del vigor y densidad de la vegetación, relacionado con la
+    actividad fotosintética y la disponibilidad de biomasa combustible.
+  </li>
+  <li>
+    <b>NDWI (Normalized Difference Water Index):</b>
+    indicador del contenido hídrico de la vegetación, utilizado para estimar
+    el nivel de estrés hídrico y la predisposición a la ignición.
+  </li>
+</ul>
+
+<p>
+La combinación de NDVI y NDWI permite evaluar de forma integrada la
+<b>cantidad de combustible vegetal</b> y su <b>estado de humedad</b>,
+factores clave en la propagación de incendios forestales.
+</p>
+
+
+<h2>Alcance y limitaciones</h2>
+
+<p>
+Este documento constituye una <b>herramienta de apoyo a la gestión
+preventiva</b> y a la planificación de actuaciones, pero no sustituye
+inspecciones técnicas presenciales ni informes oficiales emitidos por
+organismos competentes.
+</p>
+
+<p class="muted">
+Los resultados reflejan una estimación basada en los datos disponibles
+en el momento de generación del informe.
+</p>
+` : ''}
+
+
+${isTechnicalReport ? `
+<section style="
+  margin:24px 0;
+  padding:16px;
+  border-left:6px solid #dc2626;
+  background:#fff1f2;
+  font-size:13px;
+  line-height:1.45;
+">
+  <b>Marco legal y normativo</b>
+
+  <p>
+    Este informe se emite como documento técnico de apoyo a la
+    <b>gestión forestal preventiva</b> y a la toma de decisiones
+    por parte de administraciones públicas y entes competentes.
+  </p>
+
+  <ul>
+    <li>Ley 6/1988, de 30 de marzo, Forestal de Cataluña</li>
+    <li>Decreto 123/2005, de medidas de prevención de incendios forestales</li>
+    <li>Pla INFOCAT — Plan especial de emergencias por incendios forestales</li>
+    <li>Estrategias de gestión del combustible y defensa contra incendios</li>
+  </ul>
+
+  <p class="muted">
+  Los resultados se basan en análisis automatizados de variables
+  meteorológicas, topográficas y de vegetación. Estos indicadores se
+  utilizan como apoyo al diagnóstico y no sustituyen evaluaciones
+  técnicas in situ ni mediciones de campo directas.
+</p>
+
+</section>
+` : ''}
+
+<div>Generado: ${fecha}</div>
+
+<table>
+<thead>
+<tr>
+  <th>Parcela</th>
+  <th>Municipio</th>
+  <th>Riesgo</th>
+  <th>ICA</th>
+  <th>ha</th>
+</tr>
+</thead>
+<tbody>
+${rows}
+</tbody>
+</table>
+
+<!-- ===============================
+     CONCLUSIONES
+     =============================== -->
+
+${isClientReport ? `
+<h2>Conclusiones</h2>
+
+<p>
+El análisis realizado permite identificar el nivel de riesgo de incendio
+de las parcelas evaluadas y establecer prioridades claras de actuación
+preventiva.
+</p>
+
+<p>
+Las parcelas clasificadas con <b>riesgo alto</b> requieren especial
+atención durante los próximos días, siendo recomendable:
+</p>
+
+<ul>
+  <li>Incrementar la vigilancia y el control visual.</li>
+  <li>Evitar trabajos con maquinaria o uso de fuego.</li>
+  <li>Mantener accesos despejados y operativos.</li>
+</ul>
+
+<p>
+En parcelas con <b>riesgo moderado</b>, se recomienda un seguimiento
+activo de la evolución meteorológica y del estado de la vegetación.
+</p>
+
+<p>
+Las parcelas con <b>riesgo bajo</b> presentan una situación estable,
+si bien deben mantenerse las buenas prácticas de prevención habituales.
+</p>
+` : ''}
+
+${isTechnicalReport ? `
+<h2>Conclusiones técnicas</h2>
+
+<p>
+El análisis integrado de variables meteorológicas, topográficas y de
+estado de la vegetación permite identificar áreas con mayor
+predisposición a la ignición y propagación de incendios forestales.
+</p>
+
+<p>
+Las parcelas clasificadas con <b>riesgo alto</b> constituyen elementos
+prioritarios para la planificación de medidas preventivas, vigilancia
+reforzada y, en su caso, actuaciones de gestión del combustible.
+</p>
+
+<p>
+Las situaciones de <b>riesgo moderado</b> indican escenarios sensibles
+a cambios meteorológicos a corto plazo, recomendándose su inclusión en
+planes de seguimiento y actualización periódica del análisis.
+</p>
+
+<p>
+Las áreas con <b>riesgo bajo</b> no requieren actuaciones inmediatas,
+pero deben considerarse dentro de una estrategia preventiva continua y
+adaptativa.
+</p>
+` : ''}
+
+
+
+<div class="page-break">
+  <h2>Detalle por parcela</h2>
+  ${cards}
+</div>
+
+
+<footer class="report-footer">
+  Informe generado el ${fecha} · Arcadia Atlas — BioScan Catalonia
+</footer>
+
+</body>
+</html>
+`;
+}
+
+
+function escapeHtml(s){
+  return String(s ?? '')
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function riskBadge(level){
+  const c = level === 'ALTO' ? '#dc2626' : level === 'MODERADO' ? '#f59e0b' : '#22c55e';
+  return `<span style="display:inline-block;padding:4px 10px;border-radius:999px;font-weight:700;color:#0b1220;background:${c}">
+    ${escapeHtml(level || 'N/D')}
+  </span>`;
+}
+
+function hideParcelLabels(hide){
+  document
+    .querySelectorAll('.leaflet-tooltip')
+    .forEach(el => {
+      el.style.display = hide ? 'none' : '';
+    });
+}
+
+/* ==================================================
+   SNAPSHOT DE MAPA PARA PORTADA (SIN LEAFLET)
+   ================================================== */
+
+function generateSnapshotMap(features, options = {}){
+  const {
+    width = 1200,
+    height = 700,
+    padding = 20
+  } = options;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  // Fondo
+  const grd = ctx.createLinearGradient(0, 0, 0, height);
+grd.addColorStop(0, '#eef2f7');
+grd.addColorStop(1, '#e2e8f0');
+ctx.fillStyle = grd;
+ctx.fillRect(0, 0, width, height);
+
+// ruido sutil tipo ortofoto
+for (let i = 0; i < 8000; i++){
+  ctx.fillStyle = 'rgba(0,0,0,0.015)';
+  ctx.fillRect(
+    Math.random() * width,
+    Math.random() * height,
+    1,
+    1
+  );
+}
+
+  // Recolectar coordenadas (Polygon + MultiPolygon)
+  const allCoords = [];
+
+  features.forEach(f => {
+    if (!f.geometry) return;
+
+    if (f.geometry.type === 'Polygon'){
+      f.geometry.coordinates.forEach(ring =>
+        ring.forEach(pt => allCoords.push(pt))
+      );
+    }
+
+    if (f.geometry.type === 'MultiPolygon'){
+      f.geometry.coordinates.forEach(poly =>
+        poly.forEach(ring =>
+          ring.forEach(pt => allCoords.push(pt))
+        )
+      );
+    }
+  });
+
+  if (!allCoords.length){
+    console.warn('SnapshotMap: sin geometrías');
+    return null;
+  }
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  allCoords.forEach(([x, y]) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  });
+
+  const scaleX = (width - padding * 2) / (maxX - minX);
+  const scaleY = (height - padding * 2) / (maxY - minY);
+  const scale = Math.min(scaleX, scaleY);
+
+  const project = ([x, y]) => ([
+    padding + (x - minX) * scale,
+    height - (padding + (y - minY) * scale)
+  ]);
+
+  // Dibujar parcelas
+  features.forEach(f => {
+    const r = f.properties?.fire_risk;
+    const color =
+      r?.level === 'ALTO' ? '#dc2626' :
+      r?.level === 'MODERADO' ? '#f59e0b' :
+      '#22c55e';
+
+    const drawRing = ring => {
+      ctx.beginPath();
+      ring.forEach((pt, i) => {
+        const [x, y] = project(pt);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fillStyle = color + '55';
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.fill();
+      ctx.stroke();
+    };
+
+    if (f.geometry?.type === 'Polygon'){
+      f.geometry.coordinates.forEach(drawRing);
+    }
+
+    if (f.geometry?.type === 'MultiPolygon'){
+      f.geometry.coordinates.forEach(poly =>
+        poly.forEach(drawRing)
+      );
+    }
+  });
+
+  return canvas.toDataURL('image/png');
+}
+
+function generateMiniMapForFeature(feature, options = {}) {
+  const {
+    width = 320,
+    height = 220,
+    padding = 14
+  } = options;
+
+  if (!feature || !feature.geometry) return null;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+
+  // Fondo claro
+  ctx.fillStyle = '#f8fafc';
+  ctx.fillRect(0, 0, width, height);
+
+  // Recolectar coordenadas
+  const coords = [];
+
+  const collect = ring => ring.forEach(pt => coords.push(pt));
+
+  if (feature.geometry.type === 'Polygon') {
+    feature.geometry.coordinates.forEach(collect);
+  }
+
+  if (feature.geometry.type === 'MultiPolygon') {
+    feature.geometry.coordinates.forEach(poly =>
+      poly.forEach(collect)
+    );
+  }
+
+  if (!coords.length) return null;
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  coords.forEach(([x, y]) => {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  });
+
+  const scaleX = (width - padding * 2) / (maxX - minX);
+  const scaleY = (height - padding * 2) / (maxY - minY);
+  const scale = Math.min(scaleX, scaleY);
+
+  const project = ([x, y]) => ([
+    padding + (x - minX) * scale,
+    height - (padding + (y - minY) * scale)
+  ]);
+
+  const risk = feature.properties?.fire_risk?.level;
+
+  const color =
+    risk === 'ALTO' ? '#dc2626' :
+    risk === 'MODERADO' ? '#f59e0b' :
+    '#22c55e';
+
+  const drawRing = ring => {
+    ctx.beginPath();
+    ring.forEach((pt, i) => {
+      const [x, y] = project(pt);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.closePath();
+    ctx.fillStyle = color + '55';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  if (feature.geometry.type === 'Polygon') {
+    feature.geometry.coordinates.forEach(drawRing);
+  }
+
+  if (feature.geometry.type === 'MultiPolygon') {
+    feature.geometry.coordinates.forEach(poly =>
+      poly.forEach(drawRing)
+    );
+  }
+
+  return canvas.toDataURL('image/png');
+}
+
+
+/* ==================================================
+   EXPORTAR INFORME PDF (VERSIÓN LIMPIA)
+   ================================================== */
+
+async function exportRiskReportPDF(ownerType = 'private'){
+  console.log('[PDF] ownerType recibido en exportRiskReportPDF:', ownerType);
+
+  const feats = Array.isArray(lastRenderedFeatures)
+    ? lastRenderedFeatures
+    : [];
+
+  if (!feats.length){
+    alert('No hay parcelas visibles para exportar.');
+    return;
+  }
+
+  // 🔥 Mapa de portada SIN Leaflet
+  const coverMap = generateSnapshotMap(feats);
+
+  console.log('[PDF] ownerType antes de generar HTML:', ownerType);
+
+  const html = buildPDFReportHTML(feats, coverMap, ownerType);
+
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow.document;
+  doc.open();
+  doc.write(html);
+  doc.close();
+
+  iframe.onload = () => {
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => {
+      document.body.removeChild(iframe);
+    }, 1000);
+  };
+}
+
+// ======================================
+// IR A PARCELA SELECCIONADA (BOTÓN PANEL)
+// ======================================
+function goToSelectedParcel() {
+  if (!S.selId) {
+    alert('No hay ninguna parcela seleccionada');
+    return;
+  }
+
+  const layer = featureLayers[S.selId];
+  if (!layer) {
+    alert('No se ha encontrado la parcela en el mapa');
+    return;
+  }
+
+  const bounds = layer.getBounds();
+
+  map.fitBounds(bounds, {
+    padding: [40, 40],
+    maxZoom: 17,
+    animate: true
+  });
+
+  // Resalte visual temporal
+  layer.setStyle({
+    color: '#22c55e',
+    weight: 3
+  });
+
+  setTimeout(() => {
+    layer.setStyle(fireRiskStyle(layer.feature));
+  }, 1200);
+}
+
+function render(){
+  updateFilterOptions();
+
+  let featsToShow = S.fc.features.filter(matchesFilter);
+  sortFeatures(featsToShow);
+  lastRenderedFeatures = featsToShow.slice(); // snapshot para informe PDF
+
+  // ===============================
+  // 🔥 LIMPIEZA DE ETIQUETAS DE PARCELAS (OBLIGATORIO)
+  // ===============================
+  if (parcelLabelsLayer) {
+    parcelLabelsLayer.clearLayers();
+  }
+
+  // 🔥 LIMPIEZA TOTAL DE PARCELAS + TOOLTIP DOM
+  if (layerGroup) {
+    layerGroup.eachLayer(l => {
+      if (l.getTooltip()) l.unbindTooltip();
+    });
+    map.removeLayer(layerGroup);
+    layerGroup = null;
+  }
+
+  function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+// ===============================
+// MOCK: riesgo de incendio por parcela
+// (estructura definitiva)
+// ===============================
+S.fc.features.forEach(f => {
+  f.properties = f.properties || {};
+
+  if (!f.properties.fire_risk) {
+    const seed = hashString(f.id) % 100;
+
+    if (seed >= 70) {
+      f.properties.fire_risk = {
+        level: "ALTO",
+        score: 78,
+        window_h: 72,
+        factors: [
+          "Continuidad de combustible",
+          "Humedad baja",
+          "Pendiente moderada"
+        ],
+        vegetation: {
+          vigor: { value: 0.64, trend: "up" },
+          humidity: { value: 0.21, trend: "down" }
+        },
+        recommendations: [
+          "Incrementar vigilancia",
+          "Restringir trabajos con maquinaria"
+        ]
+      };
+    }
+    else if (seed >= 40) {
+      f.properties.fire_risk = {
+        level: "MODERADO",
+        score: 52,
+        window_h: 48,
+        factors: ["Vegetación continua"],
+        vegetation: {
+          vigor: { value: 0.51, trend: "stable" },
+          humidity: { value: 0.38, trend: "down" }
+        },
+        recommendations: ["Mantener vigilancia"]
+      };
+    }
+    else {
+      f.properties.fire_risk = {
+        level: "BAJO",
+        score: 21,
+        window_h: null,
+        factors: ["Humedad suficiente"],
+        vegetation: {
+          vigor: { value: 0.42, trend: "stable" },
+          humidity: { value: 0.61, trend: "up" }
+        },
+        recommendations: ["Sin medidas especiales"]
+      };
+    }
+  }
+});
 
     featureLayers = {};
     if(layerGroup) map.removeLayer(layerGroup);
 
     layerGroup = L.geoJSON(featsToShow,{
-      style:{color:'#111827',weight:2,fillColor:'#6b7280',fillOpacity:0.5},
-      onEachFeature:(f,layer)=>{
-        featureLayers[f.id] = layer;
+  style: (f) => fireRiskStyle(f),
+  onEachFeature:(f,layer)=>{
 
-        // ✅ Normaliza pendiente/tipo cultivo en render
-        f.properties = f.properties || {};
-        f.properties.pendent = getPendentValue(f.properties);
-        f.properties.tipo_cultivo = getTipoCultivoValue(f.properties);
-        f.properties.municipio = getMunicipioValue(f.properties);
+  // ✅ REGISTRO DE LA CAPA (CLAVE DEL BOTÓN "IR")
+  featureLayers[f.id] = layer;
 
-        const ha = featureAreaHa(f);
-        const p = f.properties || {};
-        const label = `${labelOf(f)} · ${ha.toFixed(2)} ha${p.variedad ? ' · ' + p.variedad : ''}`;
-        layer.bindTooltip(label,{permanent:true,direction:'center'});
+  // ✅ Normaliza pendiente/tipo cultivo en render
+  f.properties = f.properties || {};
+  f.properties.pendent = getPendentValue(f.properties);
+  f.properties.tipo_cultivo = getTipoCultivoValue(f.properties);
+  f.properties.municipio = getMunicipioValue(f.properties);
+
+  // 🔥 Índice de Combustible Atlas (ICA)
+const ica = computeICA(f);
+f.properties.ica = (ica !== null && !isNaN(ica)) ? Math.round(ica) : null;
+
+
+  const ha = featureAreaHa(f);
+  const p = f.properties || {};
+
+  // ===============================
+  // 📍 ETIQUETA ANCLADA A LA PARCELA
+  // ===============================
+  const center = layer.getBounds().getCenter();
+
+
+const labelHtml = `
+  <div class="parcel-label-div">
+    ${labelOf(f)} · ${ha.toFixed(2)} ha
+  </div>
+`;
+
+L.marker(center, {
+  pane: 'parcelLabels',
+  interactive: false,
+  icon: L.divIcon({
+    className: '',
+    html: labelHtml,
+    iconSize: null
+  })
+}).addTo(parcelLabelsLayer);
+
+
+
 
         const acc = p.acceso
           ? L.latLng(p.acceso[0], p.acceso[1])
@@ -1510,20 +3550,203 @@ $('#parcelaTipoCultivo').value = tipo || '';
         const gmapsUrl = `https://www.google.com/maps/dir/?api=1&destination=${acc.lat},${acc.lng}`;
 
         // ✅ Popup con Tipo de cultivo + Pendiente ya corregida
-        const popupHtml = `
-          <b>${labelOf(f)}</b><br>
-          Superficie: ${ha.toFixed(2)} ha<br>
-          Cultivo: ${p.cultivo || '-'}<br>
-          Tipo de cultivo: ${p.tipo_cultivo || '-'}<br>
-          Variedad: ${p.variedad || '-'}<br>
-          Municipio: ${getMunicipioValue(p) || '-'}<br>
-          Propietario: ${p.propietario || '-'}<br>
-          Sistema de regadío: ${p.regadiu || '-'}<br>
-          Pendiente: ${p.pendent || '-'}<br>
-          Año de plantación: ${p.ano_plantacion || '-'}<br><br>
-          <a href="${gmapsUrl}" target="_blank" rel="noopener">Cómo llegar</a>
-        `;
-        layer.bindPopup(popupHtml);
+        const r = p.fire_risk;
+
+const riskLabel = r
+  ? `${r.level} (${r.score}/100)`
+  : 'No disponible';
+
+const riskColor =
+  r?.level === 'ALTO' ? '#dc2626' :
+  r?.level === 'MODERADO' ? '#f59e0b' :
+  r?.level === 'BAJO' ? '#22c55e' :
+  '#6b7280';
+
+const windowText = r?.window_h
+  ? `Ventana crítica: próximas ${r.window_h} h`
+  : 'Sin ventana crítica activa';
+
+const factorsHtml = r?.factors?.length
+  ? `<ul>${r.factors.map(fac=>`<li>${fac}</li>`).join('')}</ul>`
+  : '<p class="muted">Sin factores dominantes</p>';
+
+const vegHtml = r?.vegetation
+  ? `
+    🌿 Vigor: <b>${r.vegetation.vigor.value}</b>
+    ${r.vegetation.vigor.trend === 'up' ? '↑' : r.vegetation.vigor.trend === 'down' ? '↓' : '→'}
+    <br>
+    💧 Humedad: <b>${r.vegetation.humidity.value}</b>
+    ${r.vegetation.humidity.trend === 'up' ? '↑' : r.vegetation.humidity.trend === 'down' ? '↓' : '→'}
+  `
+  : '<p class="muted">Vegetación no disponible</p>';
+
+const recHtml = r?.recommendations?.length
+  ? `<ul>${r.recommendations.map(rec=>`<li>${rec}</li>`).join('')}</ul>`
+  : '<p class="muted">Sin recomendaciones</p>';
+
+const popupHtml = `
+  <div style="min-width:260px">
+
+    <b>${labelOf(f)}</b><br>
+    <span class="muted">${ha.toFixed(2)} ha · ${getMunicipioValue(p) || '-'}</span>
+
+    <hr style="margin:8px 0">
+
+    <div>
+      🔥 <b style="color:${riskColor}">Riesgo de incendio: ${riskLabel}</b><br>
+      <span class="muted">${windowText}</span>
+    </div>
+
+    <hr style="margin:8px 0">
+
+    <div>
+      <b>Factores dominantes</b>
+      ${factorsHtml}
+    </div>
+
+    <div style="margin-top:6px">
+      <b>Vegetación</b><br>
+      ${vegHtml}
+    </div>
+
+    <div style="margin-top:6px">
+      <b>Recomendaciones</b>
+      ${recHtml}
+    </div>
+
+    <!-- AÑADIDO IPU -->
+<hr style="margin:8px 0">
+
+<div class="ipu-block" style="position:relative;">
+  <b>
+    🏠 Índice de Proximidad Urbana (IPU)
+    <span class="ipu-info-btn" title="Ver leyenda IPU">ⓘ</span>
+  </b><br>
+
+  <span id="ipu-${f.id}" class="muted">Calculando…</span>
+
+  <!-- Mini popup IPU -->
+  <div class="ipu-info-popup">
+    <button class="ipu-close">×</button>
+    <b>¿Qué es el IPU?</b>
+    <p>
+      El <b>Índice de Proximidad Urbana (IPU)</b> indica
+      la cercanía de una parcela a zonas urbanas o
+      infraestructuras.
+    </p>
+    <p><b>Baremos:</b></p>
+    <ul class="ipu-legend">
+  <li><span class="dot red"></span> ≤ 100 m → Muy alto</li>
+  <li><span class="dot orange"></span> ≤ 250 m → Alto</li>
+  <li><span class="dot yellow"></span> ≤ 500 m → Medio</li>
+  <li><span class="dot green"></span> ≤ 1 km → Bajo</li>
+  <li><span class="dot green"></span><span class="dot green"></span> > 1 km → Muy bajo</li>
+</ul>
+
+  </div>
+</div>
+
+<!-- FIN IPU -->
+
+
+    <hr style="margin:8px 0">
+
+    <div style="display:flex; gap:6px">
+      <a href="${gmapsUrl}" target="_blank" rel="noopener">📍 Cómo llegar</a>
+      <button
+        class="btn-ai-ask"
+        data-feature-id="${f.id}"
+        style="background:#0e1626;border:1px solid #334155;border-radius:6px;padding:4px 8px;color:#e2e8f0;cursor:pointer">
+        🤖 Preguntar
+      </button>
+    </div>
+  </div>
+`;
+layer.bindPopup(popupHtml);
+
+layer.on("popupopen", async (e) => {
+  // Espera a que Leaflet pinte el DOM del popup
+  setTimeout(async () => {
+    const popupEl = e.popup.getElement();
+    if (!popupEl || !window.ArcadiaIPU) return;
+
+    const el = popupEl.querySelector(`#ipu-${f.id}`);
+    if (!el) return;
+
+    try {
+      const r = await window.ArcadiaIPU.computeIPU(f);
+
+      if (!r || r.meters == null) {
+        el.textContent = "No disponible";
+        return;
+      }
+
+      let txt;
+      if (!isFinite(r.meters)) {
+  txt = `> ${(8000 / 1000).toFixed(0)} km`;
+} else {
+        txt =
+          r.meters >= 1000
+            ? `${(r.meters / 1000).toFixed(2)} km`
+            : `${Math.round(r.meters)} m`;
+      }
+
+      // === IPU UI FINAL (PASO 1) ===
+let color;
+let dotsHtml;
+
+if (r.meters <= 100) {
+  color = '#dc2626'; // rojo
+  dotsHtml = `<span class="dot" style="background:${color}"></span>`;
+} else if (r.meters <= 250) {
+  color = '#f59e0b'; // naranja
+  dotsHtml = `<span class="dot" style="background:${color}"></span>`;
+} else if (r.meters <= 500) {
+  color = '#eab308'; // amarillo
+  dotsHtml = `<span class="dot" style="background:${color}"></span>`;
+} else if (r.meters <= 1000) {
+  color = '#22c55e'; // verde (bajo)
+  dotsHtml = `<span class="dot" style="background:${color}"></span>`;
+} else {
+  color = '#22c55e'; // verde (muy bajo)
+  dotsHtml = `
+    <span style="display:inline-flex;gap:4px">
+      <span class="dot" style="background:${color}"></span>
+      <span class="dot" style="background:${color}"></span>
+    </span>`;
+}
+
+
+const dots =
+  r.band.label === 'Muy baja'
+    ? `<span style="display:inline-flex;gap:4px">
+         <span class="dot" style="background:${color}"></span>
+         <span class="dot" style="background:${color}"></span>
+       </span>`
+    : `<span class="dot" style="background:${color}"></span>`;
+
+const band = r.band;
+
+el.innerHTML = `
+  <span style="color:${band.color}; font-weight:600">
+    Zona urbana más próxima: ${txt}
+  </span><br>
+  <span style="color:${band.color}; font-weight:700">
+    ${band.dots} ${band.label}
+  </span>
+`;
+
+
+
+    } catch (err) {
+      console.warn("[IPU] error:", err);
+      el.textContent = "Error al calcular";
+    }
+  }, 0);
+});
+
+
+
 
         layer.on('click',(ev)=>{
           if (addingMarker){
@@ -1552,6 +3775,16 @@ $('#parcelaTipoCultivo').value = tipo || '';
     updateSortHeaders();
     rebuildMarkersTable();
   }
+
+  function forceRepaintParcels(){
+  if (!layerGroup) return;
+
+  layerGroup.eachLayer(layer => {
+    if (layer.setStyle && layer.feature){
+      layer.setStyle(fireRiskStyle(layer.feature));
+    }
+  });
+}
 
   function rebuildParcelsTable(features){
     const tbody = $('#parcelas-body');
@@ -1588,6 +3821,30 @@ tdMunicipio.textContent = getMunicipioValue(p);
       const tdProp = document.createElement('td'); tdProp.textContent = p.propietario || '';
       const tdPendent = document.createElement('td'); tdPendent.textContent = pend || '';
       const tdAno = document.createElement('td'); tdAno.textContent = p.ano_plantacion || '';
+      const tdRisk = document.createElement('td');
+      const tdICA = document.createElement('td');
+tdICA.textContent =
+  p.ica !== null && p.ica !== undefined ? p.ica : '—';
+tdICA.style.fontWeight = '700';
+tdICA.style.textAlign = 'center';
+
+
+const r = p.fire_risk;
+if (r){
+  tdRisk.innerHTML = `
+    <span style="
+      font-weight:600;
+      color:${
+        r.level === 'ALTO' ? '#dc2626' :
+        r.level === 'MODERADO' ? '#f59e0b' :
+        '#22c55e'
+      }">
+      ${r.level}
+    </span>
+  `;
+} else {
+  tdRisk.textContent = '-';
+}
       const tdHa = document.createElement('td'); tdHa.textContent = ha;
 
       const tdAcciones = document.createElement('td');
@@ -1643,7 +3900,20 @@ tdMunicipio.textContent = getMunicipioValue(p);
       tdAcciones.append(divActions);
 
       // ✅ Incluye la nueva columna "Tipo cultivo"
-      tr.append(tdNombre, tdCultivo, tdVariedad, tdMunicipio, tdTipo, tdProp, tdPendent, tdAno, tdHa, tdAcciones);
+      tr.append(
+  tdNombre,
+  tdCultivo,
+  tdVariedad,
+  tdMunicipio,
+  tdTipo,
+  tdProp,
+  tdPendent,
+  tdAno,
+  tdRisk,
+  tdICA,
+  tdHa,
+  tdAcciones
+);
       tbody.append(tr);
     });
   }
@@ -1981,6 +4251,54 @@ S.selId = null;
   $('#btn-export-markers-csv').addEventListener('click',exportMarkersCSV);
   $('#btn-export-markers-kml').addEventListener('click',exportMarkersKML);
 
+  // ===============================
+// Toggle: 🧯 Riesgo de incendio
+// ===============================
+const fireBtn = document.getElementById('toggle-fire-risk');
+const fireHint = document.getElementById('fire-risk-hint');
+
+if (fireBtn){
+  fireBtn.addEventListener('click', ()=>{
+    fireRiskMode = !fireRiskMode;
+
+    // UI
+    fireBtn.classList.toggle('active', fireRiskMode);
+    if (fireHint) {
+      fireHint.style.display = fireRiskMode ? 'block' : 'none';
+    }
+
+    const summary = document.getElementById('fire-risk-summary');
+  if (summary) {
+    summary.style.display = fireRiskMode ? 'block' : 'none';
+  }
+    // Re-render (todavía no cambia estilos, pero prepara el terreno)
+    render();
+    updateFireRiskSummary();
+  });
+}
+
+// ===============================
+// Botón: Ver parcelas prioritarias
+// ===============================
+const btnFocusRisk = document.getElementById('btn-focus-high-risk');
+
+if (btnFocusRisk){
+  btnFocusRisk.addEventListener('click', ()=>{
+    // ordenar por riesgo descendente
+    S.sort.field = 'fire_risk';
+    S.sort.dir = 'desc';
+
+    render();
+    updateFireRiskSummary();
+
+    // scroll al listado inferior
+    const bottomPanel = document.querySelector('.bottom-panel');
+    if (bottomPanel){
+      bottomPanel.scrollIntoView({ behavior:'smooth' });
+    }
+  });
+}
+
   // Filtros panel inferior (parcelas)
   $('#searchNombre').addEventListener('input', e=>{
     S.filters.search = e.target.value || '';
@@ -2010,6 +4328,10 @@ S.selId = null;
     S.filters.pendent = e.target.value || '';
     render();
   });
+  $('#filtroICA').addEventListener('change', e=>{
+  S.filters.ica = e.target.value || '';
+  render();
+});
   $('#filtroAno').addEventListener('change', e=>{
     S.filters.ano = e.target.value || '';
     render();
@@ -2065,8 +4387,111 @@ S.selId = null;
         S.sort.dir = 'asc';
       }
       render();
+      updateFireRiskSummary();
     });
   });
+  // ===============================
+// 🤖 Click global en "Preguntar"
+// ===============================
+document.addEventListener('click', (e)=>{
+  const btn = e.target.closest('.btn-ai-ask');
+  if (!btn) return;
+
+  const featureId = btn.dataset.featureId;
+  const feature = S.fc.features.find(f => f.id === featureId);
+  if (!feature) return;
+
+  // estado IA
+  AI.open = true;
+  AI.featureId = featureId;
+  AI.lastContext = buildForestAnalysis(feature);
+
+  // UI
+  const panel   = document.getElementById('ai-panel');
+  const context = document.getElementById('ai-context');
+  const output  = document.getElementById('ai-response');
+
+  if (panel) panel.style.display = 'block';
+  if (context) context.textContent = `Parcela: ${labelOf(feature)}`;
+  if (output) output.innerHTML = AI.lastContext;
+});
+
+// ===============================
+// 🤖 Cerrar panel IA
+// ===============================
+document.getElementById('btn-ai-close')?.addEventListener('click', ()=>{
+  const panel   = document.getElementById('ai-panel');
+  const context = document.getElementById('ai-context');
+  const output  = document.getElementById('ai-response');
+
+  // reset estado IA
+  AI.open = false;
+  AI.featureId = null;
+  AI.lastContext = null;
+
+  // UI
+  if (panel) panel.style.display = 'none';
+  if (context) context.textContent = 'Selecciona una parcela y pulsa “Preguntar”.';
+  if (output) output.innerHTML = '';
+});
+
+// ===============================
+// 📄 Botón: Exportar PDF
+// ===============================
+document.getElementById('btn-export-pdf')?.addEventListener('click', async ()=>{
+  const ownerType =
+    document.getElementById('reportOwnerType')?.value || 'private';
+
+  console.log('[PDF] Tipo de propietario seleccionado:', ownerType);
+
+  alert(
+    'Se abrirá el informe en una nueva ventana.\n\n' +
+    'Tipo de informe: ' + (ownerType === 'public' ? 'Ente público' : 'Persona privada') + '\n\n' +
+    'En el diálogo de impresión selecciona:\n' +
+    '→ "Guardar como PDF"'
+  );
+
+  await exportRiskReportPDF(ownerType);
+});
+
+
+// ===============================
+// ✉️ Botón: Enviar email
+// ===============================
+document.getElementById('btn-send-email')?.addEventListener('click', ()=>{
+  const subject = encodeURIComponent('Informe de riesgo de incendio – Arcadia Atlas');
+
+  const body = encodeURIComponent(
+`Hola,
+
+Adjunto el informe de riesgo de incendio generado desde Arcadia Atlas.
+
+Resumen rápido:
+- Parcelas analizadas: ${lastRenderedFeatures?.length || 0}
+
+Un saludo.
+`
+  );
+
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+});
+
+// ===============================
+// 🟢 Botón: Enviar por WhatsApp
+// ===============================
+document.getElementById('btn-send-whatsapp')?.addEventListener('click', ()=>{
+  const text = encodeURIComponent(
+`📄 Informe de riesgo de incendio
+
+Generado con Arcadia Atlas.
+Parcelas analizadas: ${lastRenderedFeatures?.length || 0}
+
+Adjunto el PDF.`
+  );
+
+  window.open(`https://wa.me/?text=${text}`, '_blank');
+});
+
   </script>
 
   <script>
@@ -2091,14 +4516,274 @@ S.selId = null;
   render();
   renderMarkers();
   rebuildMarkersTable();
+
+
+
+// ===============================
+// ICA — Indicador flotante (UI only)
+// ===============================
+(function initICABox() {
+  if (document.getElementById('ica-box')) return;
+
+  const box = document.createElement('div');
+  box.id = 'ica-box';
+  box.innerHTML = `
+    <div class="ica-title">🪵 ICA</div>
+    <div class="ica-info-btn" title="¿Qué es el ICA?">i</div>
+    <div class="ica-value">—</div>
+    <div class="ica-sub">Índice de Combustible Atlas</div>
+  `;
+
+  // Contenedor ICA
+  Object.assign(box.style, {
+    position: 'fixed',
+    top: '330px',
+    right: '18px',
+    zIndex: 900,
+    width: '160px',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    background: 'rgba(2,6,23,0.85)',
+    border: '1px solid #21304d',
+    backdropFilter: 'blur(6px)',
+    color: '#e2e8f0',
+    textAlign: 'center',
+    pointerEvents: 'none'
+  });
+
+  box.querySelector('.ica-title').style.cssText =
+    'font-size:0.75rem;letter-spacing:0.08em;text-transform:uppercase;color:#94a3b8';
+
+  box.querySelector('.ica-value').style.cssText =
+    'margin-top:6px;font-size:2.2rem;font-weight:800;line-height:1';
+
+  box.querySelector('.ica-sub').style.cssText =
+    'margin-top:4px;font-size:0.7rem;color:#94a3b8';
+
+  // Botón "i"
+  const infoBtn = box.querySelector('.ica-info-btn');
+  Object.assign(infoBtn.style, {
+    position: 'absolute',
+    top: '8px',
+    right: '10px',
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+    fontSize: '11px',
+    fontWeight: '700',
+    background: '#1e293b',
+    color: '#cbd5f5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '1px solid #334155',
+    cursor: 'pointer',
+    pointerEvents: 'auto'
+  });
+
+  // Panel (popover) — se posiciona “colgando” justo debajo del box
+  const infoPanel = document.createElement('div');
+  infoPanel.className = 'ica-info-panel';
+  infoPanel.innerHTML = `
+  <button class="ica-info-close" type="button" aria-label="Cerrar" title="Cerrar">×</button>
+
+  <div style="font-size:12px;font-weight:700;margin-bottom:6px;">
+    🪵 ¿Qué es el ICA?
+  </div>
+
+    <div style="font-size:11px;line-height:1.4;color:#e5e7eb;">
+      El <b>Índice de Combustible Atlas (ICA)</b> mide la
+      <b>cantidad y continuidad de biomasa combustible</b>
+      presente en una parcela.
+      <br><br>
+      🔥 El <b>riesgo de incendio</b> depende además de factores
+      <i>dinámicos</i> como:
+      <ul style="margin:4px 0 6px 16px;padding:0;font-size:11.5px;">
+        <li>meteorología</li>
+        <li>viento</li>
+        <li>humedad</li>
+      </ul>
+      Por eso <b>ICA y riesgo no siempre coinciden</b>.
+    </div>
+  `;
+
+  Object.assign(infoPanel.style, {
+  position: 'fixed',
+  width: '260px',
+  padding: '14px 16px',
+  borderRadius: '16px',
+  background: 'rgba(2,6,23,0.92)',
+  border: '1px solid #21304d',
+  backdropFilter: 'blur(8px)',
+  color: '#e5e7eb',
+  zIndex: 910,
+
+  // 👇 animación premium
+  opacity: '0',
+  transform: 'translateY(-6px)',
+  transition: 'opacity 180ms ease-out, transform 180ms ease-out',
+
+  pointerEvents: 'none'
+});
+
+
+  // X pequeñita redonda (esquina)
+  const closeBtn = infoPanel.querySelector('.ica-info-close');
+  Object.assign(closeBtn.style, {
+    position: 'absolute',
+    top: '6px',
+    right: '6px',
+    width: '13px',
+    height: '13px',
+    borderRadius: '50%',
+    border: '1px solid #334155',
+    background: '#0f172a',
+    color: '#cbd5f5',
+    fontSize: '10px',
+    lineHeight: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: '0'
+  });
+
+  function placePanelUnderBox() {
+    const r = box.getBoundingClientRect();
+    const gap = 10;
+    const panelW = 260;
+
+    // Alinear el panel a la derecha del box
+    infoPanel.style.left = `${Math.round(r.right - panelW)}px`;
+    infoPanel.style.top = `${Math.round(r.bottom + gap)}px`;
+  }
+
+  function openPanel() {
+  placePanelUnderBox();
+  infoPanel.style.pointerEvents = 'auto';
+  infoPanel.style.opacity = '1';
+  infoPanel.style.transform = 'translateY(0)';
+}
+
+function closePanel() {
+  infoPanel.style.opacity = '0';
+  infoPanel.style.transform = 'translateY(-6px)';
+  infoPanel.style.pointerEvents = 'none';
+}
+
+  function togglePanel(e) {
+    if (e) e.stopPropagation();
+    if (infoPanel.style.display === 'block') closePanel();
+    else openPanel();
+  }
+
+  infoBtn.addEventListener('click', togglePanel);
+  closeBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closePanel();
+  });
+
+  window.addEventListener('resize', () => {
+    if (infoPanel.style.display === 'block') placePanelUnderBox();
+  });
+
+  document.addEventListener('click', (e) => {
+    const inside = box.contains(e.target) || infoPanel.contains(e.target);
+    if (!inside) closePanel();
+  });
+
+  document.body.appendChild(box);
+  document.body.appendChild(infoPanel);
+})();
+
+
+
+
 </script>
 
-<script src="layers/powerRiskLayer.js"></script>
-<script src="layers/substationsLayer.js"></script>
+<script src="layers/powerRiskLayer.js" defer></script>
+<script src="layers/substationsLayer.js" defer></script>
+<script src="layers/ipuLayer.js" defer></script>
+
+
 <script>
-  initPowerRiskLayer(map);
-  initSubstationsLayer(map);
+  window.addEventListener("load", () => {
+    console.log("🔥 init layers");
+    initPowerRiskLayer(map);
+    initSubstationsLayer(map);
+  });
+
 </script>
+
+<div id="ipu-legend" class="ipu-legend">
+  <div class="ipu-legend-title">🏠 Índice de Proximidad Urbana (IPU)</div>
+
+  <div class="ipu-row">
+    <span class="dot" style="background:#dc2626"></span>
+    ≤ 100 m · Muy alta proximidad
+  </div>
+
+  <div class="ipu-row">
+    <span class="dot" style="background:#f59e0b"></span>
+    100 – 250 m · Alta proximidad
+  </div>
+
+  <div class="ipu-row">
+    <span class="dot" style="background:#eab308"></span>
+    250 – 500 m · Media proximidad
+  </div>
+
+  <div class="ipu-row">
+    <span class="dot" style="background:#22c55e"></span>
+    > 500 m · Baja proximidad
+  </div>
+</div>
+
+<script>
+/* ==================================================
+   IPU — Popup info ⓘ (solo popup parcela)
+   ================================================== */
+
+document.addEventListener('click', (e) => {
+
+  // 🔹 Abrir popup IPU
+  const infoBtn = e.target.closest('.ipu-info-btn');
+  if (infoBtn) {
+    const block = infoBtn.closest('.ipu-block');
+    if (!block) return;
+
+    const popup = block.querySelector('.ipu-info-popup');
+    if (!popup) return;
+
+    popup.classList.add('open');
+    e.stopPropagation();
+    return;
+  }
+
+  // 🔹 Cerrar con X
+  const closeBtn = e.target.closest('.ipu-close');
+  if (closeBtn) {
+    const popup = closeBtn.closest('.ipu-info-popup');
+    if (popup) popup.classList.remove('open');
+    e.stopPropagation();
+    return;
+  }
+
+  // 🔹 Click dentro del popup → NO cerrar
+  if (e.target.closest('.ipu-info-popup')) {
+    e.stopPropagation();
+    return;
+  }
+
+  // 🔹 Click fuera → cerrar todos
+  document
+    .querySelectorAll('.ipu-info-popup.open')
+    .forEach(p => p.classList.remove('open'));
+});
+
+</script>
+
+
 
 </body>
 </html>

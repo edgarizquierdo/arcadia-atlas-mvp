@@ -57,19 +57,32 @@
 
     // --- Toggle ---
     async function setEnabled(on) {
-      enabled = !!on;
+  enabled = !!on;
 
-      if (enabled) {
-        await loadLayersOnce();
-        if (!map.hasLayer(group)) group.addTo(map);
-      } else {
-        if (map.hasLayer(group)) map.removeLayer(group);
-      }
+  if (enabled) {
+    await loadLayersOnce();
+    if (!map.hasLayer(group)) group.addTo(map);
+  } else {
+    if (map.hasLayer(group)) map.removeLayer(group);
+  }
 
-      // UI
-      if (btn) btn.classList.toggle("is-active", enabled);
-      if (wrap) wrap.classList.toggle("is-active", enabled);
+  // ⬇️ AQUÍ VA EL BLOQUE NUEVO ⬇️
+  if (btn) {
+    if (enabled) {
+      btn.classList.add("is-active");
+      btn.style.setProperty("background", "#16a34a", "important");
+      btn.style.setProperty("border", "1px solid #22c55e", "important");
+    } else {
+      btn.classList.remove("is-active");
+      btn.style.setProperty("background", "rgba(2,6,23,0.72)", "important");
+      btn.style.setProperty("border", "1px solid rgba(33,48,77,0.9)", "important");
     }
+  }
+
+  if (wrap) {
+    wrap.classList.toggle("is-active", enabled);
+  }
+}
 
     // --- Control: botón ⚡ debajo de medición (topright) ---
     let btn = null;

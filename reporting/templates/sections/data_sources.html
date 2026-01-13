@@ -1,0 +1,12 @@
+<div class="page">
+  <h2>Fuentes de datos</h2>
+  <ul>
+    {% for s in data_sources %}
+      <li>
+        <strong>{{ s.name }}</strong> — {{ s.type }}
+        {% if s.resolution %} · {{ s.resolution }}{% endif %}
+        {% if s.last_update %} · {{ s.last_update }}{% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+</div>

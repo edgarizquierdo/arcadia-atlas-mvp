@@ -1,0 +1,28 @@
+<h3>{{ parcel.name }}</h3>
+
+<div class="risk-badge risk-{{ parcel.risk.level | lower }}">
+  {% if parcel.risk.level == "ALTO" %}
+    ⚠️ Riesgo ALTO
+  {% elif parcel.risk.level == "MEDIO" %}
+    ▲ Riesgo MEDIO
+  {% else %}
+    ✓ Riesgo BAJO
+  {% endif %}
+</div>
+
+<p class="muted">
+  Superficie: {{ parcel.area_ha }} ha
+</p>
+
+<ul>
+  <li>🌿 Vegetación: {{ parcel.risk_factors.vegetation_density | lower }}</li>
+  <li>⛰️ Pendiente: pronunciada</li>
+  <li>🚜 Accesibilidad: {{ parcel.risk_factors.accessibility | lower }}</li>
+</ul>
+
+<strong>Recomendaciones:</strong>
+<ul>
+  {% for action in parcel.recommendations.actions %}
+    <li>{{ action.description }}</li>
+  {% endfor %}
+</ul>

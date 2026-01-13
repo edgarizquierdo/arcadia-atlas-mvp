@@ -1,0 +1,22 @@
+{
+  "contract": "Atlas BioScan – ICA Parcel",
+  "version": "v1",
+  "scope": "parcel",
+  "description": "Contrato de datos para el Índice de Combustible Atlas (ICA) a nivel de parcela",
+  "schema": {
+    "parcel_id": "string | null",
+    "indices": {
+      "ndvi": {
+        "mean": "number (0–1)"
+      },
+      "ndwi": {
+        "mean": "number"
+      },
+      "ica": {
+        "value": "number (0–100)",
+        "class": "integer (1–5)",
+        "label": "string"
+      }
+    }
+  }
+}

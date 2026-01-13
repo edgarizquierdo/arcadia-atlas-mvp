@@ -1,0 +1,23 @@
+<div class="page">
+  <h2>Parcelas analizadas</h2>
+
+  {% for parcel in parcels %}
+
+    <h3>Parcela {{ loop.index }} — {{ parcel.name }}</h3>
+
+    <div class="card">
+
+      {% if report_version == "technical" %}
+        {% include "sections/maps_parcel.html" %}
+      {% endif %}
+
+      {% if report_version == "technical" %}
+        {% include "sections/parcel_technical.html" %}
+      {% else %}
+        {% include "sections/parcel_client.html" %}
+      {% endif %}
+
+    </div>
+
+  {% endfor %}
+</div>

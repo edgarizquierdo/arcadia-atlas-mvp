@@ -1,0 +1,34 @@
+<div class="page">
+  <h2>Resumen técnico por parcelas</h2>
+
+  <table class="tech-table">
+    <thead>
+      <tr>
+        <th>Parcela</th>
+        <th>NDVI medio</th>
+        <th>NDWI medio</th>
+        <th>Pendiente (%)</th>
+        <th>Score</th>
+        <th>Clase</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {% for parcel in parcels %}
+        <tr>
+          <td>{{ loop.index }} — {{ parcel.name }}</td>
+          <td>{{ parcel.risk_factors.indices.ndvi_mean }}</td>
+          <td>{{ parcel.risk_factors.indices.ndwi_mean }}</td>
+          <td>{{ parcel.risk_factors.slope_pct }}</td>
+          <td>{{ parcel.risk.score }}</td>
+          <td>{{ parcel.risk.class }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <p class="muted" style="margin-top: 12px;">
+    Valores calculados a partir de los datos disponibles en la fecha de generación
+    del informe, según el modelo {{ methodology.model_version }}.
+  </p>
+</div>
